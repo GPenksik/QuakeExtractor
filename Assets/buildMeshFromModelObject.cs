@@ -11,7 +11,7 @@ public class buildMeshFromModelObject : MonoBehaviour
     public SubModel subModel;
     string textureName;
     // Start is called before the first frame update
-    static int SCALE = 25;
+    static float SCALE = 40f;
     public int TotalVerts;
     public int TotalTris;
     public List<Vector3[]> VertList = new List<Vector3[]>();
@@ -37,9 +37,9 @@ public class buildMeshFromModelObject : MonoBehaviour
             for (int i_edge = 0; i_edge < N_EDGES - 2; i_edge++)
             {
                 int edgeStart = i_edge * 3;
-                newTriangles[edgeStart + 2] = 0;
+                newTriangles[edgeStart] = 0;
                 newTriangles[edgeStart + 1] = i_edge + 1;
-                newTriangles[edgeStart] = i_edge + 2;
+                newTriangles[edgeStart + 2] = i_edge + 2;
             }
 
             for (int i = 0; i < N_EDGES; i++)
@@ -112,7 +112,7 @@ public class buildMeshFromModelObject : MonoBehaviour
         Renderer m_Renderer = GetComponent<Renderer>();
         string matPath = "Assets/Materials/";
         Material material = AssetDatabase.LoadAssetAtPath<Material>(matPath + textureName + ".mat");
-        m_Renderer.material = material;
+        m_Renderer.sharedMaterial = material;
 
         if (textureName == "trigger")
         {

@@ -31,7 +31,8 @@ namespace bspMapReader
         //[SerializeField]
         //public model_t model = new model_t();
 
-        [TextAreaAttribute]
+        //[TextAreaAttribute]
+        [System.NonSerialized]
         public string Entities;
 
         [SerializeField]
@@ -51,6 +52,8 @@ namespace bspMapReader
         [SerializeField]
         public miptex_t[] miptexs;
 
+        [SerializeField]
+        public lightmap[] lightmaps;
         // CUSTOM TYPE DEFINITIONS
         [System.Serializable]
         public enum dheader_t_enum
@@ -187,6 +190,9 @@ namespace bspMapReader
             public int n_bytes;
             public int tex_offset;
         }
-
+        public struct lightmap
+        {
+            public Byte[] light;
+        }
     }
 }

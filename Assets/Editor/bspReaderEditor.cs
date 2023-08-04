@@ -25,6 +25,10 @@ class bspReaderEditor : Editor
             mapScriptable = thisReader.bspReader.ReadBSP(thisReader.bspFilename, thisReader.paletteFilename, mapScriptable);
             AssetDatabase.SaveAssets();
         }
+        if (GUILayout.Button("Parse LM"))
+        {
+            thisReader.mapScriptable = thisReader.bspReader.getLightMaps(thisReader.mapScriptable);
+        }
 
 
     }

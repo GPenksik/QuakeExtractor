@@ -1,13 +1,7 @@
-using JetBrains.Annotations;
 using System;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using UnityEngine;
-using UnityEngine.Networking.Types;
 
 
 public class BasicBinaryRead : MonoBehaviour

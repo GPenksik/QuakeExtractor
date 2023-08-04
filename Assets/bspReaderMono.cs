@@ -1,3 +1,4 @@
+using bspMapReader;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
@@ -12,4 +13,5 @@ public class bspReaderMono : MonoBehaviour
     public string paletteFilename;
     public Material baseMaterial;
     public ReadBSPtoScriptable bspReader = new ReadBSPtoScriptable();
+    public bspMapScriptable mapScriptable;
 }

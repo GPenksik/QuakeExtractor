@@ -263,15 +263,16 @@ public class MakeMesh : MonoBehaviour
                     // DETERMINE WHICH WAY THE EDGE SHOULD BE READ
                     if (thisqledge > 0)
                     {
-                        qedge[n_edge] = mapScriptable.edges[thisqledge];
+                        qedge[n_edge] = new edge_t
+                        {
+                            vertex0 = mapScriptable.edges[thisqledge].vertex1,
+                            vertex1 = mapScriptable.edges[thisqledge].vertex0
+                        };
                     }
                     else
                     {
-                        qedge[n_edge] = new edge_t
-                        {
-                            vertex0 = mapScriptable.edges[Math.Abs(thisqledge)].vertex1,
-                            vertex1 = mapScriptable.edges[Math.Abs(thisqledge)].vertex0
-                        };
+                        thisqledge = Math.Abs(thisqledge);
+                        qedge[n_edge] = mapScriptable.edges[thisqledge];
                     }
 
                     // CREATE NEW VERTICES
@@ -288,8 +289,8 @@ public class MakeMesh : MonoBehaviour
                     currentEdge.verts[0] = new Vert
                     {
                         x = vert0.x,
-                        y = vert0.y,
-                        z = vert0.z,
+                        y = vert0.z,
+                        z = vert0.y,
                         u = ((Vector3.Dot(vec3Convert(vert0), vectorS) + distS) / tWidth),
                         v = ((Vector3.Dot(vec3Convert(vert0), vectorT) + distT) / tHeight),
                     };
@@ -297,8 +298,8 @@ public class MakeMesh : MonoBehaviour
                     currentEdge.verts[1] = new Vert
                     {
                         x = vert1.x,
-                        y = vert1.y,
-                        z = vert1.z,
+                        y = vert1.z,
+                        z = vert1.y,
                         u = ((Vector3.Dot(vec3Convert(vert1), vectorS) + distS) / tWidth),
                         v = ((Vector3.Dot(vec3Convert(vert1), vectorT) + distT) / tHeight),
                     };

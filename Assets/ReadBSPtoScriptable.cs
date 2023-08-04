@@ -6,6 +6,7 @@ using bspMapReader;
 using static bspMapReader.bspMapScriptable;
 using Color = UnityEngine.Color;
 using UnityEditor;
+using System.Collections.Generic;
 
 public class ReadBSPtoScriptable
 {
@@ -75,6 +76,7 @@ public class ReadBSPtoScriptable
             mapScriptable.mipheader = ParseMipHeader(byteArray, MIP_OFFFSET);
             mapScriptable.miptexs = ParseTextures(byteArray, MIP_OFFFSET, MIP_SIZE, mapScriptable.mipheader);
 
+
             mapScriptable.maxFaceId = maxFaceId;
         }
         else
@@ -86,7 +88,105 @@ public class ReadBSPtoScriptable
         
     }
 
+    public bspMapScriptable getLightMaps(bspMapScriptable mapScriptable)
+    {
+        int LM_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].offset;
+        int LM_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].size;
 
+        mapScriptable.lightmaps = ParseLightmaps(byteArray, LM_OFFFSET, LM_SIZE, mapScriptable);
+
+        return mapScriptable;
+    }
+
+    private lightmap[] ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
+    {
+        // TEMP
+        face_t[] faces = mapScriptable.faces;
+        List<face_t> lm_faces = new List<face_t>();
+        int LM_COUNT = 0;
+        foreach (face_t face in faces)
+        {
+            if (face.lightmap >= 0) 
+            { 
+                lm_faces.Add(face);
+                LM_COUNT++;
+            }
+        }
+
+        List<lm_face_data> lm_Face_Datas = new List<lm_face_data>();
+
+        short[] lstedges = mapScriptable.lstedges;
+        int lm_face_count = 0;
+
+        foreach (face_t face in lm_faces)
+        {
+            lm_face_data face_data = new lm_face_data();
+            face_data.max_xyz = new float[3];
+            face_data.min_xyz = new float[3];
+            for (int i = 0; i < 3; i++)
+            {
+                face_data.min_xyz[i] = 100000f;
+                face_data.max_xyz[i] = -100000f;
+            }
+
+            int lm_offset = face.lightmap;
+            int ledge_num = face.ledge_num;
+            int ledge_id = face.ledge_id;
+            face_data.edges = new List<edge_t>();
+            face_data.verts = new List<vec3_t>();   
+
+            for (int n_edge = 0; n_edge < ledge_num; n_edge++)
+            {
+                int edge_id = Math.Abs(lstedges[ledge_id + n_edge]);
+                edge_t edge = mapScriptable.edges[edge_id];
+                face_data.edges.Add(edge);
+                int vert0_id = edge.vertex0;
+                int vert1_id = edge.vertex1;
+
+                vec3_t vert0 = mapScriptable.vertices[vert0_id];
+                vec3_t vert1 = mapScriptable.vertices[vert1_id];
+                face_data.verts.Add(vert0);
+                face_data.verts.Add(vert1);
+            }
+
+            foreach (vec3_t vert in face_data.verts)
+            {
+                face_data.min_xyz[0] = Math.Min(face_data.min_xyz[0], vert.x);
+                face_data.min_xyz[1] = Math.Min(face_data.min_xyz[1], vert.y);
+                face_data.min_xyz[2] = Math.Min(face_data.min_xyz[2], vert.z);
+
+                face_data.max_xyz[0] = Math.Max(face_data.max_xyz[0], vert.x);
+                face_data.max_xyz[1] = Math.Max(face_data.max_xyz[1], vert.y);
+                face_data.max_xyz[2] = Math.Max(face_data.max_xyz[2], vert.z);
+
+            }
+
+            face_data.bounds = new float[3];
+            for (int i = 0; i < 3; i++)
+            {
+                face_data.bounds[i] = face_data.max_xyz[i] - face_data.min_xyz[i];
+            }
+
+            lm_Face_Datas.Add(face_data);
+        }
+
+        lightmap[] lightmaps = new lightmap[LM_COUNT];
+
+        return lightmaps;
+    }
+
+    public struct lm_face_data
+    {
+        public face_t face;
+        public List<edge_t> edges;
+        public float[] max_xyz;
+        public float[] min_xyz;
+        public surface_t surface;
+        public vec3_t vectorS;
+        public vec3_t vectorT;
+        public List<vec3_t> verts;
+        public float[] bounds;
+    }
 
     // READ ALL AND CONVERTERS
     private byte[] ReadAllBytes(BinaryReader reader)
@@ -185,7 +285,7 @@ public class ReadBSPtoScriptable
         {
             i = mipheader.offset[n_mip];
             miptexs[n_mip] = ParseMiptex(byteArray, offset+i);
-            generateTexture(byteArray, miptexs[n_mip]);
+            //generateTexture(byteArray, miptexs[n_mip]);
         }
 
         return miptexs;
