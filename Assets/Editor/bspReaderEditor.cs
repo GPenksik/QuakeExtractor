@@ -22,12 +22,21 @@ class bspReaderEditor : Editor
             AssetDatabase.CreateAsset(mapScriptable, "Assets/" + thisReader.bspFile.name + ".asset");
             EditorUtility.SetDirty(mapScriptable);
             thisReader.bspReader.baseMaterial = thisReader.baseMaterial;
+            thisReader.bspReader.skyMaterial = thisReader.skyMaterial;
             mapScriptable = thisReader.bspReader.ReadBSP(thisReader.bspFilename, thisReader.paletteFilename, mapScriptable);
             AssetDatabase.SaveAssets();
+            thisReader.mapScriptable = mapScriptable;
         }
         if (GUILayout.Button("Parse LM"))
         {
+            thisReader.bspReader.bspFilename = thisReader.bspFilename;
             thisReader.mapScriptable = thisReader.bspReader.getLightMaps(thisReader.mapScriptable);
+        }
+        if (GUILayout.Button("Rebuild Materials"))
+        {
+            thisReader.bspReader.baseMaterial = thisReader.baseMaterial;
+            thisReader.bspReader.skyMaterial = thisReader.skyMaterial;
+            thisReader.bspReader.rebuildMaterials(thisReader.mapScriptable.miptexs);
         }
 
 

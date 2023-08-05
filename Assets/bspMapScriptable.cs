@@ -53,7 +53,7 @@ namespace bspMapReader
         public miptex_t[] miptexs;
 
         [SerializeField]
-        public lightmap[] lightmaps;
+        public lightmap_t[] lightmaps;
         // CUSTOM TYPE DEFINITIONS
         [System.Serializable]
         public enum dheader_t_enum
@@ -123,20 +123,17 @@ namespace bspMapReader
         [System.Serializable]
         public struct face_t
         { 
-            public short plane_id;            // The plane in which the face lies
-                                         //           must be in [0,numplanes[ 
-            public short side;                // 0 if in front of the plane, 1 if behind the plane
-            public int ledge_id;               // first edge in the List of edges
-                                               //           must be in [0,numledges[
-            public short ledge_num;           // number of edges in the List of edges
-            public short texinfo_id;          // index of the Texture info the face is part of
-                                              //           must be in [0,numtexinfos[ 
+            public ushort plane_id;            // The plane id (NOT USED)
+            public ushort side;                // 0 if in front of the plane, 1 if behind the plane
+            public int ledge_id;               // id to edge_t
+            public ushort ledge_num;           // number of edges in the List of edges
+            public ushort texinfo_id;          // id to surface_t 
             public Byte typelight;            // type of lighting, for the face
             public Byte baselight;            // from 0xFF (dark) to 0 (bright)
             public Byte[] light;             // two additional light models  
             public int lightmap;               // Pointer inside the general light map, or -1
                                                // this define the start of the face light map
-            public static int n_bytes = 4 * sizeof(short) + 2*sizeof(int) + 4;
+            public static int n_bytes = 4 * sizeof(ushort) + 2*sizeof(int) + 4;
         }
 
 
@@ -190,9 +187,11 @@ namespace bspMapReader
             public int n_bytes;
             public int tex_offset;
         }
-        public struct lightmap
+        [System.Serializable]
+        public struct lightmap_t
         {
-            public Byte[] light;
+            [SerializeField]
+            public Byte[,] light;
         }
     }
 }

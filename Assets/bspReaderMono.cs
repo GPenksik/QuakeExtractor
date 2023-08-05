@@ -12,6 +12,7 @@ public class bspReaderMono : MonoBehaviour
     public DefaultAsset paletteFile;
     public string paletteFilename;
     public Material baseMaterial;
+    public Material skyMaterial;
     public ReadBSPtoScriptable bspReader = new ReadBSPtoScriptable();
     public bspMapScriptable mapScriptable;
 }

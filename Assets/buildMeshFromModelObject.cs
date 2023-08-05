@@ -68,6 +68,7 @@ public class buildMeshFromModelObject : MonoBehaviour
         int[] AllNewTriangles = new int[TotalTris];
         Vector3[] AllNewVertices = new Vector3[TotalVerts];
         Vector2[] AllNewUVs = new Vector2[TotalVerts];
+        Vector2[] AllNewUV2s = new Vector2[TotalVerts];
 
         int vertCount = 0;
         foreach (Vector3[] verts in VertList)
@@ -83,7 +84,9 @@ public class buildMeshFromModelObject : MonoBehaviour
         {
             foreach (Vector2 UV in UVs)
             {
-                AllNewUVs[UVCount++] = UV;
+                AllNewUVs[UVCount] = UV;
+                AllNewUV2s[UVCount] = new Vector2(UVCount,UVCount);
+                UVCount++;
             }
         }
 
@@ -104,9 +107,9 @@ public class buildMeshFromModelObject : MonoBehaviour
         mesh.vertices = AllNewVertices;
         mesh.triangles = AllNewTriangles;
         mesh.uv = AllNewUVs;
+        mesh.uv2 = AllNewUV2s;
         mesh.RecalculateNormals();
 
-        mesh.normals = mesh.normals;
         GetComponent<MeshFilter>().mesh = mesh;
 
         Renderer m_Renderer = GetComponent<Renderer>();
@@ -126,10 +129,20 @@ public class buildMeshFromModelObject : MonoBehaviour
             MeshCollider meshCollider = GetComponent<MeshCollider>();
             meshCollider.sharedMesh = mesh;
         }
+        createMeshAsset();
+
         //gameObject.transform.localScale = new Vector3(-1f,1f,1f);
 
 
     } // END METHOD
+
+    public void createMeshAsset()
+    {
+        MeshFilter meshFilter = gameObject.GetComponent<MeshFilter>();
+        Mesh mesh = meshFilter.sharedMesh;
+        string meshPath = "Assets/Meshes/" + gameObject.name + ".asset";
+        AssetDatabase.CreateAsset(mesh, meshPath);
+    }
 
     void Start()
     {

@@ -7,6 +7,7 @@ using System;
 using UnityEngine.XR;
 using System.Linq;
 using static MakeMesh;
+using UnityEditor;
 
 public class MakeMesh : MonoBehaviour
 {
@@ -18,11 +19,6 @@ public class MakeMesh : MonoBehaviour
 
     public int modelIndex = 1;
     public string textureName = "None";
-    //public int tWidth = 256;
-    //public int tHeight = 256;
-    private int prevModelIndex;
-
-    public int[] triangles;
 
     [SerializeField]
     model_t qmodel;
@@ -136,6 +132,11 @@ public class MakeMesh : MonoBehaviour
     // Start is called before the first frame update
     public void buildMesh(bool buildAll = false)
     {
+        if (mapScriptable == null)
+        {
+            Debug.LogWarning("NO MAP LOADED");
+            return;
+        }
         List<List<int[]>> ListTriangleLists = new List<List<int[]>>();
 
         int modelIndexStart, modelIndexEnd;
@@ -328,17 +329,18 @@ public class MakeMesh : MonoBehaviour
             for (int n_subModel = 0; n_subModel < model.subModels.Count; n_subModel++)
             {
                 SubModel subModel = model.subModels[n_subModel];
-                GameObject newModel = Instantiate(modelPrefab);
+                GameObject newModel = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(modelPrefab);
                 newModel.transform.parent = modelParentGO.transform;
                 newModel.name = "Model_" + modelCount + "_" + n_subModel;
 
                 buildMeshFromModelObject builder = newModel.GetComponent<buildMeshFromModelObject>();
                 builder.buildMeshFromModel(subModel);
-
             }
             modelCount++;
         }
     }
+
+
 
     public GameObject DestroyOldModels()
     {
@@ -393,7 +395,6 @@ public class MakeMesh : MonoBehaviour
         newVec.z = vec3.z;
 
         return newVec;
-
     }
 
 }

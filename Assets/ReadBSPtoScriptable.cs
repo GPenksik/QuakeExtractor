@@ -7,85 +7,104 @@ using static bspMapReader.bspMapScriptable;
 using Color = UnityEngine.Color;
 using UnityEditor;
 using System.Collections.Generic;
+using System.Threading;
 
 public class ReadBSPtoScriptable
 {
-    private Byte[] byteArray;
-
     public int BSPVersion;
+
+    public string bspFilename;
 
     public int maxFaceId = 0;
     public Material baseMaterial;
+    public Material skyMaterial;
     private Color[] colorPalette = new Color[256];
 
     public bspMapScriptable ReadBSP(string bspFilename, string paletteFilename, bspMapScriptable mapScriptable)
     {
+        Byte[] byteArray;
+        this.bspFilename = bspFilename;
         mapScriptable.palette = loadPalette(paletteFilename);
         colorPalette = mapScriptable.palette;
-        string bspPath = "Assets/" + bspFilename;
+
+        byteArray = getByteArray();
+
+        if (byteArray == null )
+        {
+            Debug.LogError("ERROR PARSING BYTEARRAY");
+            return mapScriptable;
+        }
+
+        BSPVersion = toInt(byteArray, 0);
+        mapScriptable.headers = ParseHeaders(byteArray, 4);
+
+        int N_MODELS = mapScriptable.headers.headers[(int)dheader_t_enum.MODELS].size / model_t.n_bytes;
+        int MODELS_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.MODELS].offset;
+        mapScriptable.models = ParseModels(byteArray, MODELS_OFFSET, N_MODELS);
+
+        int ENTITIES_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.ENTITIES].offset;
+        int ENTITIES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.ENTITIES].size;
+        mapScriptable.Entities = ParseEntities(byteArray, ENTITIES_OFFSET, ENTITIES_SIZE);
+
+
+        int VERTS_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.VERTICES].offset;
+        int VERTS_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.VERTICES].size;
+        mapScriptable.vertices = ParseVectices(byteArray, VERTS_OFFSET, VERTS_SIZE);
+
+        int FACES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.FACES].offset;
+        int FACES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.FACES].size;
+        mapScriptable.faces = ParseFaces(byteArray, FACES_OFFFSET, FACES_SIZE);
+
+        int EDGES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.EDGES].offset;
+        int EDGES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.EDGES].size;
+        mapScriptable.edges = ParseEdges(byteArray, EDGES_OFFFSET, EDGES_SIZE);
+
+        int LEDGES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LEDGES].offset;
+        int LEDGES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LEDGES].size;
+        mapScriptable.lstedges = ParseLstEdges(byteArray, LEDGES_OFFFSET, LEDGES_SIZE);
+
+        int LFACES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LFACE].offset;
+        int LFACES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LFACE].size;
+        mapScriptable.lface = ParseLFaces(byteArray, LFACES_OFFFSET, LFACES_SIZE);
+
+        int TEX_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.TEXINFO].offset;
+        int TEX_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.TEXINFO].size;
+        mapScriptable.surfaces = ParseTexInfos(byteArray, TEX_OFFFSET, TEX_SIZE);
+
+        int MIP_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.MIPTEX].offset;
+        int MIP_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.MIPTEX].size;
+
+        mapScriptable.mipheader = ParseMipHeader(byteArray, MIP_OFFFSET);
+        mapScriptable.miptexs = ParseTextures(byteArray, MIP_OFFFSET, MIP_SIZE, mapScriptable.mipheader);
+
+
+        mapScriptable.maxFaceId = maxFaceId;
+
+
+        return mapScriptable;
+
+    }
+
+    private Byte[] getByteArray()
+    {
+        string bspPath = "Assets/" + this.bspFilename;
+
 
         if (File.Exists(bspPath))
         {
-            Byte[] Byte4 = new Byte[4];
             using (var stream = File.Open(bspPath, FileMode.Open))
             {
                 using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
                 {
-                    byteArray = ReadAllBytes(reader);
+                    return ReadAllBytes(reader);
                 }
             }
-            BSPVersion = toInt(byteArray,0);
-            mapScriptable.headers = ParseHeaders(byteArray, 4);
-
-            int N_MODELS = mapScriptable.headers.headers[(int)dheader_t_enum.MODELS].size / model_t.n_bytes;
-            int MODELS_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.MODELS].offset;
-            mapScriptable.models = ParseModels(byteArray, MODELS_OFFSET, N_MODELS);
-
-            int ENTITIES_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.ENTITIES].offset;
-            int ENTITIES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.ENTITIES].size;
-            mapScriptable.Entities = ParseEntities(byteArray, ENTITIES_OFFSET, ENTITIES_SIZE);
-
-
-            int VERTS_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.VERTICES].offset;
-            int VERTS_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.VERTICES].size;
-            mapScriptable.vertices = ParseVectices(byteArray, VERTS_OFFSET, VERTS_SIZE);
-
-            int FACES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.FACES].offset;
-            int FACES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.FACES].size;
-            mapScriptable.faces = ParseFaces(byteArray, FACES_OFFFSET, FACES_SIZE);
-
-            int EDGES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.EDGES].offset;
-            int EDGES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.EDGES].size;
-            mapScriptable.edges = ParseEdges(byteArray, EDGES_OFFFSET, EDGES_SIZE);
-
-            int LEDGES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LEDGES].offset;
-            int LEDGES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LEDGES].size;
-            mapScriptable.lstedges = ParseLstEdges(byteArray, LEDGES_OFFFSET, LEDGES_SIZE);
-
-            int LFACES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LFACE].offset;
-            int LFACES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LFACE].size;
-            mapScriptable.lface = ParseLFaces(byteArray, LFACES_OFFFSET, LFACES_SIZE);
-
-            int TEX_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.TEXINFO].offset;
-            int TEX_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.TEXINFO].size;
-            mapScriptable.surfaces = ParseTexInfos(byteArray, TEX_OFFFSET, TEX_SIZE);
-
-            int MIP_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.MIPTEX].offset;
-            int MIP_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.MIPTEX].size;
-
-            mapScriptable.mipheader = ParseMipHeader(byteArray, MIP_OFFFSET);
-            mapScriptable.miptexs = ParseTextures(byteArray, MIP_OFFFSET, MIP_SIZE, mapScriptable.mipheader);
-
-
-            mapScriptable.maxFaceId = maxFaceId;
         }
         else
         {
-            Debug.Log("File not found");
+            Debug.LogError("BSP FILE NOT FOUND");
+            return null;
         }
-
-        return mapScriptable;
-        
     }
 
     public bspMapScriptable getLightMaps(bspMapScriptable mapScriptable)
@@ -93,12 +112,12 @@ public class ReadBSPtoScriptable
         int LM_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].offset;
         int LM_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].size;
 
-        mapScriptable.lightmaps = ParseLightmaps(byteArray, LM_OFFFSET, LM_SIZE, mapScriptable);
+        mapScriptable.lightmaps = ParseLightmaps(getByteArray(), LM_OFFFSET, LM_SIZE, mapScriptable);
 
         return mapScriptable;
     }
 
-    private lightmap[] ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
+    private lightmap_t[] ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
     {
         // TEMP
         face_t[] faces = mapScriptable.faces;
@@ -108,84 +127,140 @@ public class ReadBSPtoScriptable
         {
             if (face.lightmap >= 0) 
             { 
+                if (face.lightmap > LM_SIZE)
+                {
+                    Debug.LogError("Lightmap outofbounds");
+                }
                 lm_faces.Add(face);
                 LM_COUNT++;
             }
         }
 
-        List<lm_face_data> lm_Face_Datas = new List<lm_face_data>();
+        List<lm_faceData> lm_Face_Datas = new List<lm_faceData>();
 
         short[] lstedges = mapScriptable.lstedges;
-        int lm_face_count = 0;
+
+        int n_face = 0;
+        int n_indivisible_faces = 0;
+
+        lightmap_t[] lightmaps = new lightmap_t[LM_COUNT];
 
         foreach (face_t face in lm_faces)
         {
-            lm_face_data face_data = new lm_face_data();
-            face_data.max_xyz = new float[3];
-            face_data.min_xyz = new float[3];
+            lm_faceData faceData = new lm_faceData();
+            faceData.max_xyz = new float[3];
+            faceData.min_xyz = new float[3];
             for (int i = 0; i < 3; i++)
             {
-                face_data.min_xyz[i] = 100000f;
-                face_data.max_xyz[i] = -100000f;
+                faceData.min_xyz[i] = 100000f;
+                faceData.max_xyz[i] = -100000f;
             }
 
             int lm_offset = face.lightmap;
             int ledge_num = face.ledge_num;
             int ledge_id = face.ledge_id;
-            face_data.edges = new List<edge_t>();
-            face_data.verts = new List<vec3_t>();   
+            int texinfo_id = face.texinfo_id;
+            surface_t surface = mapScriptable.surfaces[texinfo_id];
+
+            faceData.lightmap = face.lightmap;
+
+            faceData.vectorS = vec3Convert(surface.vectorS);
+            faceData.vectorT = vec3Convert(surface.vectorT);
+
+            faceData.edges = new List<edge_t>();
+            faceData.verts = new List<vec3_t>();   
 
             for (int n_edge = 0; n_edge < ledge_num; n_edge++)
             {
                 int edge_id = Math.Abs(lstedges[ledge_id + n_edge]);
                 edge_t edge = mapScriptable.edges[edge_id];
-                face_data.edges.Add(edge);
+                faceData.edges.Add(edge);
                 int vert0_id = edge.vertex0;
                 int vert1_id = edge.vertex1;
 
                 vec3_t vert0 = mapScriptable.vertices[vert0_id];
                 vec3_t vert1 = mapScriptable.vertices[vert1_id];
-                face_data.verts.Add(vert0);
-                face_data.verts.Add(vert1);
+                faceData.verts.Add(vert0);
+                faceData.verts.Add(vert1);
             }
 
-            foreach (vec3_t vert in face_data.verts)
+            foreach (vec3_t vert in faceData.verts)
             {
-                face_data.min_xyz[0] = Math.Min(face_data.min_xyz[0], vert.x);
-                face_data.min_xyz[1] = Math.Min(face_data.min_xyz[1], vert.y);
-                face_data.min_xyz[2] = Math.Min(face_data.min_xyz[2], vert.z);
+                faceData.min_xyz[0] = Math.Min(faceData.min_xyz[0], vert.x);
+                faceData.min_xyz[1] = Math.Min(faceData.min_xyz[1], vert.y);
+                faceData.min_xyz[2] = Math.Min(faceData.min_xyz[2], vert.z);
 
-                face_data.max_xyz[0] = Math.Max(face_data.max_xyz[0], vert.x);
-                face_data.max_xyz[1] = Math.Max(face_data.max_xyz[1], vert.y);
-                face_data.max_xyz[2] = Math.Max(face_data.max_xyz[2], vert.z);
-
+                faceData.max_xyz[0] = Math.Max(faceData.max_xyz[0], vert.x);
+                faceData.max_xyz[1] = Math.Max(faceData.max_xyz[1], vert.y);
+                faceData.max_xyz[2] = Math.Max(faceData.max_xyz[2], vert.z);
             }
 
-            face_data.bounds = new float[3];
+            faceData.bounds = new Vector3();
             for (int i = 0; i < 3; i++)
             {
-                face_data.bounds[i] = face_data.max_xyz[i] - face_data.min_xyz[i];
+                faceData.bounds[i] = faceData.max_xyz[i] - faceData.min_xyz[i];
             }
 
-            lm_Face_Datas.Add(face_data);
+            faceData.boundX = Math.Abs(Vector3.Dot(faceData.bounds, faceData.vectorS));
+            faceData.boundY = Math.Abs(Vector3.Dot(faceData.bounds, faceData.vectorT));
+
+            if (faceData.boundX % 16 != 0 || faceData.boundY % 16 != 0) 
+            {
+                //Debug.LogWarning("Face number " + n_face + " is not divisible by 16");
+                n_indivisible_faces++;
+            }
+
+            faceData.lm_width = (int)Mathf.Ceil(faceData.boundX / 16f);
+            faceData.lm_height = (int)Mathf.Ceil(faceData.boundY / 16f);
+            faceData.lm_length = faceData.lm_width * faceData.lm_height;
+
+            Byte[,] lightmapArr = new byte[faceData.lm_height, faceData.lm_width];
+
+            int counter = 0;
+            for (int h = 0; h < faceData.lm_height; h++)
+            {
+                for (int w = 0; w < faceData.lm_width; w++)
+                {
+                    int index = LM_OFFFSET + faceData.lightmap + counter;
+                    lightmapArr[h, w] = byteArray[index];
+                    
+                    counter++;
+                }
+            }
+
+            faceData.lightmapArray = lightmapArr;
+
+            lm_Face_Datas.Add(faceData);
+            lightmap_t lightmap = new lightmap_t();
+            lightmap.light = lightmapArr;
+            lightmaps[n_face] = lightmap;
+            n_face++;
         }
 
-        lightmap[] lightmaps = new lightmap[LM_COUNT];
+        //Debug.Log("Num indivisible = " + n_indivisible_faces);
+
 
         return lightmaps;
     }
 
-    public struct lm_face_data
+    public struct lm_faceData
     {
+        public Byte[,] lightmapArray;
+        public int lm_length;
+        public int lm_width;
+        public int lm_height;
+        public float boundX;
+        public float boundY;
         public face_t face;
         public List<edge_t> edges;
         public float[] max_xyz;
         public float[] min_xyz;
         public surface_t surface;
-        public vec3_t vectorS;
-        public vec3_t vectorT;
+        public Vector3 vectorS;
+        public Vector3 vectorT;
         public List<vec3_t> verts;
-        public float[] bounds;
+        public Vector3 bounds;
+        public int lightmap;
     }
 
     // READ ALL AND CONVERTERS
@@ -389,15 +464,15 @@ public class ReadBSPtoScriptable
     {
         int i = 0;
         face_t face = new face_t();
-        face.plane_id = toShort(byteArray, offset + i);
+        face.plane_id = toUShort(byteArray, offset + i);
         i += 2;
-        face.side = toShort(byteArray, offset + i);
+        face.side = toUShort(byteArray, offset + i);
         i += 2;
         face.ledge_id = toInt(byteArray, offset + i);
         i += 4;
-        face.ledge_num = toShort(byteArray, offset + i);
+        face.ledge_num = toUShort(byteArray, offset + i);
         i += 2;
-        face.texinfo_id = toShort(byteArray, offset + i);
+        face.texinfo_id = toUShort(byteArray, offset + i);
         i += 2;
         face.typelight = byteArray[offset + i];
         i += 1;
@@ -469,6 +544,7 @@ public class ReadBSPtoScriptable
 
         return model;
     }
+    
     public model_t[] ParseModels(Byte[] byteArray, int MODELS_OFFSET, int N_MODELS)
     {
         model_t[] models = new model_t[N_MODELS];
@@ -557,6 +633,7 @@ public class ReadBSPtoScriptable
 
         return palette;
     }
+    
     private Texture2D generateTexture(Byte[] byteArray, miptex_t miptex)
     {
         uint width = miptex.width;
@@ -595,15 +672,63 @@ public class ReadBSPtoScriptable
 
     private void createMaterialAsset(string textureFilename)
     {
+        string matPath = "Assets/Materials/";
+        Material material = getNewMaterialFromTexture(textureFilename);
+        AssetDatabase.CreateAsset(material, matPath + textureFilename+".mat");
+    }
+
+    private Material getNewMaterialFromTexture(string textureName)
+    {
+        string texPath = "Assets/Textures/";
+        string fullTexPath = texPath + textureName + ".png";
+        if (File.Exists(fullTexPath))
+        {
+            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(fullTexPath);
+            Material material;
+            if (textureName == "sky1")
+            {
+                material = new Material(skyMaterial);
+            } else
+            {
+                material = new Material(baseMaterial);
+            }
+            material.mainTexture = texture;
+            return material;
+        } else
+        {
+            Debug.LogWarning("Material created without Texture: " + textureName);
+            return new Material(baseMaterial);
+        }
+    }
+
+    public void rebuildMaterials(miptex_t[] miptexs)
+    {
         string texPath = "Assets/Textures/";
         string matPath = "Assets/Materials/";
-        string fullTexPath = texPath + textureFilename + ".png";
-        if (File.Exists(fullTexPath)) 
-        { 
-            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(fullTexPath);
-            Material material = new Material(baseMaterial);
-            material.mainTexture = texture;
-            AssetDatabase.CreateAsset(material, matPath + textureFilename+".mat");
+        string textureName;
+        foreach (miptex_t miptex in miptexs)
+        {
+            textureName = miptex.nameStr.Replace("*", "");
+            string texturePath = texPath + textureName + ".png";
+            string materialPath = matPath + textureName + ".mat";
+            Texture2D texture = (Texture2D)AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            if (texture == null)
+            {
+                Debug.LogWarning("Texture " + textureName + " not found");
+                continue;
+            }
+
+            Material material = (Material)AssetDatabase.LoadMainAssetAtPath(materialPath);
+            if (material == null)
+            {
+                createMaterialAsset(textureName);
+            } else
+            {
+                EditorUtility.CopySerialized(getNewMaterialFromTexture(textureName), material);
+                material.name = textureName;
+                AssetDatabase.SaveAssets();
+                //AssetDatabase.ImportAsset(materialPath, ImportAssetOptions.ImportRecursive);
+            }
         }
     }
 
@@ -611,5 +736,17 @@ public class ReadBSPtoScriptable
     
         return colorPalette[colorIndex];
 
+    }
+
+    // MISC METHODS
+    static Vector3 vec3Convert(vec3_t vec3)
+    {
+        Vector3 newVec = new Vector3();
+
+        newVec.x = vec3.x;
+        newVec.y = vec3.y;
+        newVec.z = vec3.z;
+
+        return newVec;
     }
 }
