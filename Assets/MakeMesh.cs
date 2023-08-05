@@ -29,27 +29,25 @@ public class MakeMesh : MonoBehaviour
     public struct Model
     {
         public List<SubModel> subModels;
-        public int[] AllNewTriangles;
-        public Vector3[] AllNewVertices;
-        public Vector2[] AllNewUVs;
-        public List<int[]> TriangleList;
-        public List<Vector3[]> VertList;
-        public List<Vector2[]> UVList;
         public int TotalTris;
         public int TotalVerts;
         public List<string> texturesInModel;
         public Model(int a = 0)
         {
-            AllNewTriangles = null;
-            AllNewVertices = null;
-            AllNewUVs = null;
             subModels = new List<SubModel>();
-            TriangleList = new List<int[]>();
-            VertList = new List<Vector3[]>();
-            UVList = new List<Vector2[]>();
             TotalTris = 0;
             TotalVerts = 0;
             texturesInModel = new List<string>();
+        }
+        public void calcTotals()
+        {
+            TotalTris = 0;
+            TotalVerts = 0;
+            foreach (SubModel subModel in subModels)
+            {
+                TotalTris += subModel.N_SUBFACES;
+            }
+            TotalVerts = TotalTris * 3;
         }
     }
 
@@ -64,7 +62,7 @@ public class MakeMesh : MonoBehaviour
         //public string textureName;
     }
 
-    [System.Serializable]
+    //[System.Serializable]
     public struct Edge
     {
         public string textureName;
@@ -75,21 +73,32 @@ public class MakeMesh : MonoBehaviour
             verts = new Vert[a];
         }
     }
-    //[System.Serializable]
+    [System.Serializable]
     public struct Face
     {
         public int N_EDGES;
+        public int N_SUBFACES;
         public string textureName;
         public List<Edge> edges;
+        public int lightmap;
+        public bool hasLM;
+        public Byte typelight;            // type of lighting, for the face
+        public Byte baselight;
         public Face(int a = 10)
         {
             N_EDGES = 0;
+            N_SUBFACES = 0;
             textureName = "";
             edges = new List<Edge>();
+            hasLM = false;
+            lightmap = -1;
+            typelight = 0;
+            baselight = 255;
         }
         public void addEdge(Edge edge)
         {
             N_EDGES++;
+            N_SUBFACES = N_EDGES - 2;
             edges.Add(edge);
         }
     }
@@ -97,36 +106,27 @@ public class MakeMesh : MonoBehaviour
     public struct SubModel
     {
         public int N_FACES;
-        public int N_FACES_EXPECTED;
+        public int N_SUBFACES;
+        public int N_LM;
         public string textureName;
         public List<Face> faces;
+
+
         public SubModel(int a = 10)
         {
-            N_FACES_EXPECTED = 0;
             N_FACES = 0;
+            N_SUBFACES = 0;
             textureName = "";
             faces = new List<Face>();
+            N_LM = 0;
         }
         public void addFace(Face face)
         {
             N_FACES++;
+            N_SUBFACES += face.N_SUBFACES;
+            if (face.hasLM) { N_LM++; }
             faces.Add(face);
         }
-    }
-
-    private void Start()
-    {
-        //prevModelIndex = modelIndex;
-        //buildMesh();
-    }
-
-    private void Update()
-    {
-        //if (prevModelIndex != modelIndex)
-        //{
-        //    buildMesh();
-        //    prevModelIndex = modelIndex;
-        //}
     }
 
     // Start is called before the first frame update
@@ -137,7 +137,6 @@ public class MakeMesh : MonoBehaviour
             Debug.LogWarning("NO MAP LOADED");
             return;
         }
-        List<List<int[]>> ListTriangleLists = new List<List<int[]>>();
 
         int modelIndexStart, modelIndexEnd;
         if (buildAll)
@@ -151,8 +150,6 @@ public class MakeMesh : MonoBehaviour
         }
 
         umodels.Clear();
-        //qmodel = new model_t();
-        //List<ModelData> modelData = new List<ModelData>();
         int N_MODELS = 0;
 
         // FOR EACH MODEL
@@ -195,17 +192,10 @@ public class MakeMesh : MonoBehaviour
                 {
                     iSubmodel = currentuModel.texturesInModel.FindIndex(a => a.Contains(textureName));
                     currentSubModel = currentuModel.subModels[iSubmodel];
-                    currentSubModel.N_FACES_EXPECTED++;
                     currentuModel.subModels[iSubmodel] = currentSubModel;
                 }
             } // END BUILD LIST OF SUBMODELS
 
-            //for (int n_submodel = 0; n_submodel < currentuModel.subModels.Count; n_submodel++)
-            //{
-            //    SubModel subModel = currentuModel.subModels[n_submodel];
-            //    //subModel.faces = new Face[subModel.N_FACES];
-            //    currentuModel.subModels[n_submodel] = subModel;
-            //}
 
             // FOR EACH FACE
             for (int n_face = 0; n_face < N_FACES; n_face++)
@@ -214,6 +204,8 @@ public class MakeMesh : MonoBehaviour
                 surface_t qsurface = getSurface(qfaces[n_face]);
                 string textureName = getTextureName(qfaces[n_face]);
                 miptex_t miptex = getMiptex(qfaces[n_face]);
+
+                int lightmap = qfaces[n_face].lightmap;
 
                 // GET APPROPRIATE SUBMODEL
                 iSubmodel = currentuModel.texturesInModel.FindIndex(a => a.Contains(textureName));
@@ -224,7 +216,6 @@ public class MakeMesh : MonoBehaviour
                 int tHeight = (int)miptex.height;
 
                 // SAVE TEXTURE FOR THIS FACE
-                //currentSubModel.addFace();
                 Face currentFace = new Face(1);
                 currentFace.textureName = textureName;
 
@@ -240,13 +231,17 @@ public class MakeMesh : MonoBehaviour
                 int N_EDGES = qfaces[n_face].ledge_num;
                 int edge_offset = qfaces[n_face].ledge_id;
 
-                // CREATE NEW EDGES
-                //currentFace.edges = new Edge[N_EDGES];
-
                 // INITIALISE Q EDGES
                 short[] qledge = new short[N_EDGES];
                 edge_t[] qedge = new edge_t[N_EDGES];
 
+                // GET LIGHT PROPERTIES
+                if (lightmap >= 0) { 
+                    currentFace.hasLM = true;
+                    currentFace.lightmap = lightmap;
+                }
+                currentFace.baselight = qfaces[n_face].baselight;
+                currentFace.typelight = qfaces[n_face].typelight;
 
                 // FOR EACH EDGE ADD VERTEX
                 for (int n_edge = 0; n_edge < N_EDGES; n_edge++)
@@ -313,7 +308,7 @@ public class MakeMesh : MonoBehaviour
 
 
             //ADD UMODEL TO LIST
-
+            currentuModel.calcTotals();
             umodels[N_MODELS-1] = currentuModel;
         } // FINISH MODEL LOOP
 
@@ -370,22 +365,6 @@ public class MakeMesh : MonoBehaviour
         return mapScriptable.miptexs[current_texture_id];
     }
 
-    [System.Serializable]
-    struct ModelData
-    {
-        public string textureName;
-        public Vector3[] AllNewVertices;
-        public int[] AllNewTriangles;
-        public Vector2[] AllNewUVs;
-
-        public ModelData(int a = 0)
-        {
-            textureName = "";
-            AllNewVertices = null;
-            AllNewTriangles = null;
-            AllNewUVs = null;
-        }
-    }
     static Vector3 vec3Convert(vec3_t vec3)
     {
         Vector3 newVec = new Vector3();

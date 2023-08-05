@@ -119,7 +119,6 @@ public class ReadBSPtoScriptable
 
     private lightmap_t[] ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
     {
-        // TEMP
         face_t[] faces = mapScriptable.faces;
         List<face_t> lm_faces = new List<face_t>();
         int LM_COUNT = 0;
@@ -210,20 +209,21 @@ public class ReadBSPtoScriptable
                 n_indivisible_faces++;
             }
 
-            faceData.lm_width = (int)Mathf.Ceil(faceData.boundX / 16f);
-            faceData.lm_height = (int)Mathf.Ceil(faceData.boundY / 16f);
+            faceData.lm_width = (int)Mathf.Ceil(faceData.boundX / 16f) + 1;
+            faceData.lm_height = (int)Mathf.Ceil(faceData.boundY / 16f) + 1;
             faceData.lm_length = faceData.lm_width * faceData.lm_height;
 
             Byte[,] lightmapArr = new byte[faceData.lm_height, faceData.lm_width];
 
             int counter = 0;
+            int index = 0;
             for (int h = 0; h < faceData.lm_height; h++)
             {
                 for (int w = 0; w < faceData.lm_width; w++)
                 {
-                    int index = LM_OFFFSET + faceData.lightmap + counter;
+                    index = LM_OFFFSET + faceData.lightmap + counter;
                     lightmapArr[h, w] = byteArray[index];
-                    
+
                     counter++;
                 }
             }
@@ -232,19 +232,20 @@ public class ReadBSPtoScriptable
 
             lm_Face_Datas.Add(faceData);
             lightmap_t lightmap = new lightmap_t();
+
+
             lightmap.light = lightmapArr;
+            lightmap.samples = faceData.lm_length;
             lightmaps[n_face] = lightmap;
             n_face++;
         }
-
-        //Debug.Log("Num indivisible = " + n_indivisible_faces);
-
 
         return lightmaps;
     }
 
     public struct lm_faceData
     {
+        public int n_styles;
         public Byte[,] lightmapArray;
         public int lm_length;
         public int lm_width;
@@ -475,6 +476,8 @@ public class ReadBSPtoScriptable
         face.texinfo_id = toUShort(byteArray, offset + i);
         i += 2;
         face.typelight = byteArray[offset + i];
+        i += 1;
+        face.baselight = byteArray[offset + i];
         i += 1;
         face.light = new byte[2];
         face.light[0] = byteArray[offset + i];

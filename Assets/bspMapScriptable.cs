@@ -28,28 +28,25 @@ namespace bspMapReader
         [SerializeField]
         public model_t[] models;
 
-        //[SerializeField]
-        //public model_t model = new model_t();
-
         //[TextAreaAttribute]
         [System.NonSerialized]
         public string Entities;
 
-        [SerializeField]
+        //[SerializeField]
         public vec3_t[] vertices;
 
         [SerializeField]
         public face_t[] faces;
 
-        [SerializeField]
+        //[SerializeField]
         public edge_t[] edges;
 
-        [SerializeField]
+        //[SerializeField]
         public surface_t[] surfaces;
 
-        [SerializeField]
+        //[SerializeField]
         public mipheader_t mipheader;
-        [SerializeField]
+        //[SerializeField]
         public miptex_t[] miptexs;
 
         [SerializeField]
@@ -81,7 +78,7 @@ namespace bspMapReader
             public int offset;
             public int size;
         }
-        [System.Serializable]
+        //[System.Serializable]
         public struct vec3_t
         {
             public float x;
@@ -90,7 +87,7 @@ namespace bspMapReader
             public static int n_bytes = sizeof(float) * 3;
         }
 
-        [System.Serializable]
+        //[System.Serializable]
         public struct boundbox_t
         {
             public vec3_t min;
@@ -98,7 +95,7 @@ namespace bspMapReader
             public static int n_bytes = vec3_t.n_bytes * 2;
         }
 
-        [System.Serializable]
+        //[System.Serializable]
         public struct bboxshort_t
         {
             public float min;
@@ -137,7 +134,7 @@ namespace bspMapReader
         }
 
 
-        [System.Serializable]
+        //[System.Serializable]
         public struct edge_t
         { 
             public short vertex0;             // index of the start vertex
@@ -153,7 +150,7 @@ namespace bspMapReader
         [SerializeField]
         public ushort[] lface;
 
-        [System.Serializable]
+        //[System.Serializable]
         public struct surface_t 
         { 
             public vec3_t vectorS;            // S vector, horizontal in texture space)
@@ -166,14 +163,14 @@ namespace bspMapReader
             public static int n_bytes = 2 * 12 + 4 * 4;
         }
 
-        [System.Serializable]
+        //[System.Serializable]
         public struct mipheader_t
         {
             public int numtex;
             public int[] offset;
             public int n_bytes;
         }
-        [System.Serializable]
+        //[System.Serializable]
         public struct miptex_t
         {
             public string nameStr;
@@ -190,8 +187,8 @@ namespace bspMapReader
         [System.Serializable]
         public struct lightmap_t
         {
-            [SerializeField]
             public Byte[,] light;
+            public int samples;
         }
     }
 }

@@ -31,6 +31,7 @@ class bspReaderEditor : Editor
         {
             thisReader.bspReader.bspFilename = thisReader.bspFilename;
             thisReader.mapScriptable = thisReader.bspReader.getLightMaps(thisReader.mapScriptable);
+            AssetDatabase.SaveAssets();
         }
         if (GUILayout.Button("Rebuild Materials"))
         {

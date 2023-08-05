@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -27,48 +28,62 @@ public class buildMeshFromModelObject : MonoBehaviour
 
         for (int n_face = 0; n_face < N_FACES; n_face++)
         {
+
+
             List<Edge> edges = subModel.faces[n_face].edges;
             int N_EDGES = subModel.faces[n_face].edges.Count;
+            int N_SUB_FACES = N_EDGES - 2;
             
-            int[] newTriangles = new int[(N_EDGES - 2) * 3];
-            Vector3[] newVertices = new Vector3[N_EDGES];
-            Vector2[] newUVs = new Vector2[N_EDGES];
+            int[] newTrianglesWhole = new int[N_SUB_FACES * 3];
+            int[] newTrianglesSub = new int[N_SUB_FACES * 3];
+            Vector3[] newVerticesWhole = new Vector3[N_EDGES];
+            Vector3[] newVerticesSub = new Vector3[N_SUB_FACES * 3];
+            Vector2[] newUVsWhole = new Vector2[N_EDGES];
+            Vector2[] newUVsSub = new Vector2[N_SUB_FACES * 3];
 
             for (int i_edge = 0; i_edge < N_EDGES - 2; i_edge++)
             {
                 int edgeStart = i_edge * 3;
-                newTriangles[edgeStart] = 0;
-                newTriangles[edgeStart + 1] = i_edge + 1;
-                newTriangles[edgeStart + 2] = i_edge + 2;
+                newTrianglesWhole[edgeStart] = 0;
+                newTrianglesWhole[edgeStart + 1] = i_edge + 1;
+                newTrianglesWhole[edgeStart + 2] = i_edge + 2;
             }
 
             for (int i = 0; i < N_EDGES; i++)
             {
-                newVertices[i] = new Vector3
+                newVerticesWhole[i] = new Vector3
                 {
                     x = edges[i].verts[1].x / SCALE,
                     y = edges[i].verts[1].y / SCALE,
                     z = edges[i].verts[1].z / SCALE
                 };
-                newUVs[i] = new Vector2
+                newUVsWhole[i] = new Vector2
                 {
                     x = edges[i].verts[1].u,
                     y = edges[i].verts[1].v
                 };
             }
 
-            TotalVerts += newVertices.Length;
-            TotalTris += newTriangles.Length;
+            for (int n_vert = 0; n_vert < newTrianglesSub.Length; n_vert++)
+            {
+                newTrianglesSub[n_vert] = n_vert;
 
-            VertList.Add(newVertices);
-            TriangleList.Add(newTriangles);
-            UVList.Add(newUVs);
+                newVerticesSub[n_vert] = newVerticesWhole[newTrianglesWhole[n_vert]];
+                newUVsSub[n_vert] = newUVsWhole[newTrianglesWhole[n_vert]];
+            }
+
+            TotalVerts += newVerticesSub.Length;
+            TotalTris += newTrianglesSub.Length;
+
+            VertList.Add(newVerticesSub);
+            TriangleList.Add(newTrianglesSub);
+            UVList.Add(newUVsSub);
         } // END FACE LOOP
 
         int[] AllNewTriangles = new int[TotalTris];
         Vector3[] AllNewVertices = new Vector3[TotalVerts];
         Vector2[] AllNewUVs = new Vector2[TotalVerts];
-        Vector2[] AllNewUV2s = new Vector2[TotalVerts];
+        Vector2[] AllNewUVFaceID = new Vector2[TotalVerts];
 
         int vertCount = 0;
         foreach (Vector3[] verts in VertList)
@@ -80,14 +95,20 @@ public class buildMeshFromModelObject : MonoBehaviour
         }
 
         int UVCount = 0;
+        int n_face_count = 0;
         foreach (Vector2[] UVs in UVList)
         {
+            int n_uv_in_face = 0;
             foreach (Vector2 UV in UVs)
             {
+                int countOfTris = (int)math.floor(UVCount / 3);
+                int n_sub = (int)math.floor(n_uv_in_face / 3);
                 AllNewUVs[UVCount] = UV;
-                AllNewUV2s[UVCount] = new Vector2(UVCount,UVCount);
+                AllNewUVFaceID[UVCount] = new Vector2(n_face_count, n_sub);
                 UVCount++;
+                n_uv_in_face++;
             }
+            n_face_count++;
         }
 
         int triCount = 0;
@@ -107,7 +128,7 @@ public class buildMeshFromModelObject : MonoBehaviour
         mesh.vertices = AllNewVertices;
         mesh.triangles = AllNewTriangles;
         mesh.uv = AllNewUVs;
-        mesh.uv2 = AllNewUV2s;
+        mesh.uv2 = AllNewUVFaceID;
         mesh.RecalculateNormals();
 
         GetComponent<MeshFilter>().mesh = mesh;
