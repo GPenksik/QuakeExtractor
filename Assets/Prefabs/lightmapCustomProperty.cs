@@ -13,7 +13,7 @@
 //        Rect newPosition = position;
 //        newPosition.y += 20f;
 //        lightmap_t lightmap = (lightmap_t)property.boxedValue;
-//        if (lightmap.light != null )
+//        if (lightmap.LMData != null )
 //        {
 //            Debug.Log("STOP HERE");
 //        }
@@ -22,20 +22,20 @@
 //        //for (int i = 0; i < 8; i++)
 //        //{
 //        //    SerializedProperty row = rows.GetArrayElementAtIndex(i).FindPropertyRelative("row");
-//        //    newPosition.height = 20;
+//        //    newPosition.LMHeight = 20;
 
 //        //    if (row.arraySize != LengthOfArray)
 //        //    {
 //        //        row.arraySize = LengthOfArray;
 //        //    }
 
-//        //    newPosition.width = 20;
+//        //    newPosition.LMWidth = 20;
 
 //        //    for (int j = 0; j < LengthOfArray; j++)
 //        //    {
 //        //        //Debug.Log("ED: j " + j);
 //        //        EditorGUI.PropertyField(newPosition, row.GetArrayElementAtIndex(j), GUIContent.none);
-//        //        newPosition.x += newPosition.width;
+//        //        newPosition.x += newPosition.LMWidth;
 //        //    }
 
 //        //    newPosition.x = position.x;

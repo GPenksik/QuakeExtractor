@@ -8,6 +8,7 @@ using Color = UnityEngine.Color;
 using UnityEditor;
 using System.Collections.Generic;
 using System.Threading;
+using static UnityEditor.ShaderGraph.Internal.KeywordDependentCollection;
 
 public class ReadBSPtoScriptable
 {
@@ -112,30 +113,32 @@ public class ReadBSPtoScriptable
         int LM_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].offset;
         int LM_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].size;
 
-        mapScriptable.lightmaps = ParseLightmaps(getByteArray(), LM_OFFFSET, LM_SIZE, mapScriptable);
+        mapScriptable = ParseLightmaps(getByteArray(), LM_OFFFSET, LM_SIZE, mapScriptable);
 
         return mapScriptable;
     }
 
-    private lightmap_t[] ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
+    private bspMapScriptable ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
     {
-        face_t[] faces = mapScriptable.faces;
+        //face_t[] faces = mapScriptable.faces;
         List<face_t> lm_faces = new List<face_t>();
+        List<int> lm_face_ids = new List<int>();
         int LM_COUNT = 0;
-        foreach (face_t face in faces)
+        for (int i_face = 0; i_face < mapScriptable.faces.Length; i_face++)
         {
-            if (face.lightmap >= 0) 
+            if (mapScriptable.faces[i_face].lightmap >= 0) 
             { 
-                if (face.lightmap > LM_SIZE)
-                {
-                    Debug.LogError("Lightmap outofbounds");
-                }
-                lm_faces.Add(face);
+                lm_faces.Add(mapScriptable.faces[i_face]);
+                mapScriptable.faces[i_face].lightmap_index = LM_COUNT;
+                lm_face_ids.Add(i_face);
                 LM_COUNT++;
+            } else
+            {
+                mapScriptable.faces[i_face].lightmap_index = -1;
             }
         }
 
-        List<lm_faceData> lm_Face_Datas = new List<lm_faceData>();
+        //List<lm_faceData> lm_Face_Datas = new List<lm_faceData>();
 
         short[] lstedges = mapScriptable.lstedges;
 
@@ -146,125 +149,142 @@ public class ReadBSPtoScriptable
 
         foreach (face_t face in lm_faces)
         {
-            lm_faceData faceData = new lm_faceData();
-            faceData.max_xyz = new float[3];
-            faceData.min_xyz = new float[3];
-            for (int i = 0; i < 3; i++)
-            {
-                faceData.min_xyz[i] = 100000f;
-                faceData.max_xyz[i] = -100000f;
-            }
+            // INITIALISE NEW LIGHTMAP
+            lightmap_t lightmap = new lightmap_t();
+            lightmap.lightmapID = face.lightmap;
 
             int lm_offset = face.lightmap;
             int ledge_num = face.ledge_num;
             int ledge_id = face.ledge_id;
             int texinfo_id = face.texinfo_id;
+            
             surface_t surface = mapScriptable.surfaces[texinfo_id];
+            miptex_t miptex = mapScriptable.miptexs[surface.texture_id];
+            string textureName = miptex.nameStr;
 
-            faceData.lightmap = face.lightmap;
 
-            faceData.vectorS = vec3Convert(surface.vectorS);
-            faceData.vectorT = vec3Convert(surface.vectorT);
 
-            faceData.edges = new List<edge_t>();
-            faceData.verts = new List<vec3_t>();   
+            // INITIALISE MIN AND MAX VALUES
+            float fMax = float.MaxValue;
+            float fMin = float.MinValue;
+            lightmap.faceMin = new Vector3(fMax,fMax,fMax);
+            lightmap.faceMax = new Vector3(fMin,fMin,fMin);
+
+            // GET VECTORS FOR ORIENTATION
+            lightmap.vectorS = surface.vectorS;
+            lightmap.vectorT = surface.vectorT;
+
+            // INITIALISE EDGES AND VERTS
+            // TODO: DONT STORE THESE IN LIGHTMAP?
+            lightmap.edges = new List<edge_t>();
+            lightmap.verts = new List<Vector3>();
+
 
             for (int n_edge = 0; n_edge < ledge_num; n_edge++)
             {
-                int edge_id = Math.Abs(lstedges[ledge_id + n_edge]);
+                int signed_edge_id = lstedges[ledge_id + n_edge];
+                int edge_id = Math.Abs(signed_edge_id);
                 edge_t edge = mapScriptable.edges[edge_id];
-                faceData.edges.Add(edge);
+                lightmap.edges.Add(edge);
                 int vert0_id = edge.vertex0;
                 int vert1_id = edge.vertex1;
 
-                vec3_t vert0 = mapScriptable.vertices[vert0_id];
-                vec3_t vert1 = mapScriptable.vertices[vert1_id];
-                faceData.verts.Add(vert0);
-                faceData.verts.Add(vert1);
+                if (signed_edge_id > 0)
+                {
+                    lightmap.verts.Add(mapScriptable.vertices[vert0_id]);
+                } else
+                {
+                    lightmap.verts.Add(mapScriptable.vertices[vert1_id]);
+                }
             }
 
-            foreach (vec3_t vert in faceData.verts)
+
+            // CALCULATE BOUNDS
+            foreach (Vector3 vert in lightmap.verts)
             {
-                faceData.min_xyz[0] = Math.Min(faceData.min_xyz[0], vert.x);
-                faceData.min_xyz[1] = Math.Min(faceData.min_xyz[1], vert.y);
-                faceData.min_xyz[2] = Math.Min(faceData.min_xyz[2], vert.z);
+                lightmap.faceMin.x = Math.Min(lightmap.faceMin.x, vert.x);
+                lightmap.faceMin.y = Math.Min(lightmap.faceMin.y, vert.y);
+                lightmap.faceMin.z = Math.Min(lightmap.faceMin.z, vert.z);
 
-                faceData.max_xyz[0] = Math.Max(faceData.max_xyz[0], vert.x);
-                faceData.max_xyz[1] = Math.Max(faceData.max_xyz[1], vert.y);
-                faceData.max_xyz[2] = Math.Max(faceData.max_xyz[2], vert.z);
+                lightmap.faceMax.x = Math.Max(lightmap.faceMax.x, vert.x);
+                lightmap.faceMax.y = Math.Max(lightmap.faceMax.y, vert.y);
+                lightmap.faceMax.z = Math.Max(lightmap.faceMax.z, vert.z);
             }
 
-            faceData.bounds = new Vector3();
-            for (int i = 0; i < 3; i++)
-            {
-                faceData.bounds[i] = faceData.max_xyz[i] - faceData.min_xyz[i];
-            }
+            lightmap.faceSpan = lightmap.faceMax - lightmap.faceMin;
 
-            faceData.boundX = Math.Abs(Vector3.Dot(faceData.bounds, faceData.vectorS));
-            faceData.boundY = Math.Abs(Vector3.Dot(faceData.bounds, faceData.vectorT));
+            lightmap.LMSpan = new Vector2();
 
-            if (faceData.boundX % 16 != 0 || faceData.boundY % 16 != 0) 
+            lightmap.LMSpan.x = Math.Abs(Vector3.Dot(lightmap.faceSpan, lightmap.vectorS));
+            lightmap.LMSpan.y = Math.Abs(Vector3.Dot(lightmap.faceSpan, lightmap.vectorT));
+
+            if (lightmap.LMSpan.x % 16 != 0 || lightmap.LMSpan.y % 16 != 0) 
             {
                 //Debug.LogWarning("Face number " + n_face + " is not divisible by 16");
                 n_indivisible_faces++;
             }
 
-            faceData.lm_width = (int)Mathf.Ceil(faceData.boundX / 16f) + 1;
-            faceData.lm_height = (int)Mathf.Ceil(faceData.boundY / 16f) + 1;
-            faceData.lm_length = faceData.lm_width * faceData.lm_height;
 
-            Byte[,] lightmapArr = new byte[faceData.lm_height, faceData.lm_width];
+            // CALCULATE VERT COORDINATES IN TEXTURE SPACE AND LIGHTMAP UVs
+            lightmap.LM_UVs = new List<Vector2>();
+            lightmap.vertTextureSpace = new List<Vector2>();
+            float U_TS, V_TS;
+            float min_U_TS, max_U_TS, min_V_TS, max_V_TS;
+            float span_U_TS, span_V_TS;
+            float U_LM, V_LM;
+
+            min_U_TS = Vector3.Dot(lightmap.faceMin, lightmap.vectorS);
+            max_U_TS = Vector3.Dot(lightmap.faceMax, lightmap.vectorS);
+
+            min_V_TS = Vector3.Dot(lightmap.faceMin, lightmap.vectorT);
+            max_V_TS = Vector3.Dot(lightmap.faceMax, lightmap.vectorT);
+
+            span_U_TS = max_U_TS - min_U_TS;
+            span_V_TS = max_V_TS - min_V_TS;
+
+            foreach (Vector3 vert in lightmap.verts)
+            {
+
+                U_TS = Vector3.Dot(vert, lightmap.vectorS);
+                V_TS = Vector3.Dot(vert, lightmap.vectorT);
+                lightmap.vertTextureSpace.Add(new Vector2(U_TS, V_TS));
+
+                U_LM = (U_TS - min_U_TS) / span_U_TS;
+                V_LM = (V_TS - min_V_TS) / span_V_TS;
+
+                lightmap.LM_UVs.Add(new Vector2(U_LM, V_LM));
+            }
+
+            // CALCULATE SIZE OF LIGHTMAP
+            lightmap.LMWidth = (int)Mathf.Ceil(lightmap.LMSpan.x / 16f) + 1;
+            lightmap.LMHeight = (int)Mathf.Ceil(lightmap.LMSpan.y / 16f) + 1;
+            lightmap.LMSamples = lightmap.LMWidth * lightmap.LMHeight;
+
+
+            // INITIALISE AND POPULATE LIGHTMAP DATA
+            lightmap.LMData = new byte[lightmap.LMSamples];
 
             int counter = 0;
-            int index = 0;
-            for (int h = 0; h < faceData.lm_height; h++)
+            int index = LM_OFFFSET + lightmap.lightmapID;
+            for (int h = 0; h < lightmap.LMHeight; h++)
             {
-                for (int w = 0; w < faceData.lm_width; w++)
+                for (int w = 0; w < lightmap.LMWidth; w++)
                 {
-                    index = LM_OFFFSET + faceData.lightmap + counter;
-                    lightmapArr[h, w] = byteArray[index];
-
+                    lightmap.LMData[counter] = byteArray[index + counter];
                     counter++;
                 }
             }
 
-            faceData.lightmapArray = lightmapArr;
-
-            lm_Face_Datas.Add(faceData);
-            lightmap_t lightmap = new lightmap_t();
-
-
-            lightmap.light = lightmapArr;
-            lightmap.samples = faceData.lm_length;
             lightmaps[n_face] = lightmap;
+
             n_face++;
         }
 
-        return lightmaps;
+        mapScriptable.lightmaps = lightmaps;
+
+        return mapScriptable;
     }
 
-    public struct lm_faceData
-    {
-        public int n_styles;
-        public Byte[,] lightmapArray;
-        public int lm_length;
-        public int lm_width;
-        public int lm_height;
-        public float boundX;
-        public float boundY;
-        public face_t face;
-        public List<edge_t> edges;
-        public float[] max_xyz;
-        public float[] min_xyz;
-        public surface_t surface;
-        public Vector3 vectorS;
-        public Vector3 vectorT;
-        public List<vec3_t> verts;
-        public Vector3 bounds;
-        public int lightmap;
-    }
-
-    // READ ALL AND CONVERTERS
     private byte[] ReadAllBytes(BinaryReader reader)
     {
         const int bufferSize = 4096;
@@ -276,7 +296,6 @@ public class ReadBSPtoScriptable
                 ms.Write(buffer, 0, count);
             return ms.ToArray();
         }
-
     }
 
     public int toInt(Byte[] byteArray, int offset)
@@ -325,17 +344,18 @@ public class ReadBSPtoScriptable
         miptex.tex_offset = offset;
         int i = 0;
         miptex.name = new Byte[16];
-        int n_chars = 0;
+        int N_CHARS = 0;
         for (int n_char = 0; n_char < 16; n_char++)
         {
-            miptex.name[n_char] = byteArray[offset + i];
-            if (miptex.name[n_char] != 0)
+            if (byteArray[offset + n_char] == 0)
             {
-                n_chars++;
+                break;
             }
-            i += 1;
+            miptex.name[n_char] = byteArray[offset + n_char];
+            N_CHARS++;
         }
-        miptex.nameStr = Encoding.UTF8.GetString(miptex.name).Substring(0,n_chars);
+        i += 16;
+        miptex.nameStr = Encoding.UTF8.GetString(miptex.name).Substring(0,N_CHARS);
         miptex.width = toUInt(byteArray, offset + i);
         i += 4;
         miptex.height = toUInt(byteArray, offset + i);
@@ -575,9 +595,9 @@ public class ReadBSPtoScriptable
         return bound;
     }
 
-    public vec3_t ParseVec3(Byte[] byteArray, int offset)
+    public Vector3 ParseVec3(Byte[] byteArray, int offset)
     {
-        vec3_t vec3 = new vec3_t();
+        Vector3 vec3 = new Vector3();
         vec3.x = BitConverter.ToSingle(byteArray, offset);
         vec3.y = BitConverter.ToSingle(byteArray, offset+4);
         vec3.z = BitConverter.ToSingle(byteArray, offset+8);
@@ -591,15 +611,15 @@ public class ReadBSPtoScriptable
         return entities;
     }
 
-    public vec3_t[] ParseVectices(Byte[] byteArray, int VERTS_OFFSET, int VERTS_SIZE)
+    public Vector3[] ParseVectices(Byte[] byteArray, int VERTS_OFFSET, int VERTS_SIZE)
     {
         int N_VERTS = VERTS_SIZE / vec3_t.n_bytes;
-        vec3_t[] vertices = new vec3_t[N_VERTS];
+        Vector3[] vertices = new Vector3[N_VERTS];
 
         int i = 0;
         for (int n_vert = 0;  n_vert < N_VERTS;n_vert++)
         {
-            vec3_t vert = ParseVec3(byteArray, VERTS_OFFSET + i);
+            Vector3 vert = ParseVec3(byteArray, VERTS_OFFSET + i);
             i += vec3_t.n_bytes;
             vertices[n_vert] = vert;
         }
@@ -742,14 +762,14 @@ public class ReadBSPtoScriptable
     }
 
     // MISC METHODS
-    static Vector3 vec3Convert(vec3_t vec3)
-    {
-        Vector3 newVec = new Vector3();
+    //static Vector3 vec3Convert(vec3_t vec3)
+    //{
+    //    Vector3 newVec = new Vector3();
 
-        newVec.x = vec3.x;
-        newVec.y = vec3.y;
-        newVec.z = vec3.z;
+    //    newVec.x = vec3.x;
+    //    newVec.y = vec3.y;
+    //    newVec.z = vec3.z;
 
-        return newVec;
-    }
+    //    return newVec;
+    //}
 }

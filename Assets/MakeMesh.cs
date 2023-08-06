@@ -32,12 +32,14 @@ public class MakeMesh : MonoBehaviour
         public int TotalTris;
         public int TotalVerts;
         public List<string> texturesInModel;
+        public List<int> lightmapsInModel;
         public Model(int a = 0)
         {
             subModels = new List<SubModel>();
             TotalTris = 0;
             TotalVerts = 0;
             texturesInModel = new List<string>();
+            lightmapsInModel = new List<int>();
         }
         public void calcTotals()
         {
@@ -81,6 +83,7 @@ public class MakeMesh : MonoBehaviour
         public string textureName;
         public List<Edge> edges;
         public int lightmap;
+        public lightmap_t light;
         public bool hasLM;
         public Byte typelight;            // type of lighting, for the face
         public Byte baselight;
@@ -94,6 +97,7 @@ public class MakeMesh : MonoBehaviour
             lightmap = -1;
             typelight = 0;
             baselight = 255;
+            light = new lightmap_t();
         }
         public void addEdge(Edge edge)
         {
@@ -129,7 +133,6 @@ public class MakeMesh : MonoBehaviour
         }
     }
 
-    // Start is called before the first frame update
     public void buildMesh(bool buildAll = false)
     {
         if (mapScriptable == null)
@@ -153,7 +156,6 @@ public class MakeMesh : MonoBehaviour
         int N_MODELS = 0;
 
         // FOR EACH MODEL
-        //for (int modelIndex = 0; modelIndex < mapScriptable.models.Length; modelIndex++)
         for (int modelIndexLocal = modelIndexStart; modelIndexLocal <= modelIndexEnd; modelIndexLocal++)
         {
             N_MODELS++;
@@ -174,7 +176,6 @@ public class MakeMesh : MonoBehaviour
             // FOR LOOP Build list of submodels
             for (int n_face = 0; n_face < N_FACES; n_face++)
             {
-                // Save face_t array
                 qfaces[n_face] = mapScriptable.faces[offsetToFacesInModel + n_face];
 
                 string textureName = getTextureName(qfaces[n_face]);
@@ -207,6 +208,11 @@ public class MakeMesh : MonoBehaviour
 
                 int lightmap = qfaces[n_face].lightmap;
 
+                if (lightmap >= 0)
+                {
+                    currentuModel.lightmapsInModel.Add(lightmap);
+                }
+
                 // GET APPROPRIATE SUBMODEL
                 iSubmodel = currentuModel.texturesInModel.FindIndex(a => a.Contains(textureName));
                 currentSubModel = currentuModel.subModels[iSubmodel];
@@ -220,8 +226,8 @@ public class MakeMesh : MonoBehaviour
                 currentFace.textureName = textureName;
 
                 // GET DETAILS FOR MAPPING
-                Vector3 vectorS = vec3Convert(qsurface.vectorS);
-                Vector3 vectorT = vec3Convert(qsurface.vectorT);
+                Vector3 vectorS = qsurface.vectorS;
+                Vector3 vectorT = qsurface.vectorT;
 
 
                 float distS = qsurface.distS;
@@ -239,6 +245,7 @@ public class MakeMesh : MonoBehaviour
                 if (lightmap >= 0) { 
                     currentFace.hasLM = true;
                     currentFace.lightmap = lightmap;
+                    currentFace.light = mapScriptable.lightmaps[qfaces[n_face].lightmap_index];
                 }
                 currentFace.baselight = qfaces[n_face].baselight;
                 currentFace.typelight = qfaces[n_face].typelight;
@@ -274,8 +281,8 @@ public class MakeMesh : MonoBehaviour
                     // CREATE NEW VERTICES
                     //currentEdge.verts = new Vert[2];
 
-                    vec3_t vert0 = mapScriptable.vertices[qedge[n_edge].vertex0];
-                    vec3_t vert1 = mapScriptable.vertices[qedge[n_edge].vertex1];
+                    Vector3 vert0 = mapScriptable.vertices[qedge[n_edge].vertex0];
+                    Vector3 vert1 = mapScriptable.vertices[qedge[n_edge].vertex1];
 
                     // SAVE TEXTURE NAME TO VERTEX
                     //currentEdge.verts[0].textureName = textureName;
@@ -287,8 +294,8 @@ public class MakeMesh : MonoBehaviour
                         x = vert0.x,
                         y = vert0.z,
                         z = vert0.y,
-                        u = ((Vector3.Dot(vec3Convert(vert0), vectorS) + distS) / tWidth),
-                        v = ((Vector3.Dot(vec3Convert(vert0), vectorT) + distT) / tHeight),
+                        u = ((Vector3.Dot(vert0, vectorS) + distS) / tWidth),
+                        v = ((Vector3.Dot(vert0, vectorT) + distT) / tHeight),
                     };
 
                     currentEdge.verts[1] = new Vert
@@ -296,8 +303,8 @@ public class MakeMesh : MonoBehaviour
                         x = vert1.x,
                         y = vert1.z,
                         z = vert1.y,
-                        u = ((Vector3.Dot(vec3Convert(vert1), vectorS) + distS) / tWidth),
-                        v = ((Vector3.Dot(vec3Convert(vert1), vectorT) + distT) / tHeight),
+                        u = ((Vector3.Dot(vert1, vectorS) + distS) / tWidth),
+                        v = ((Vector3.Dot(vert1, vectorT) + distT) / tHeight),
                     };
                     currentFace.addEdge(currentEdge);
                 } // FINISH EDGE LOOP
@@ -364,17 +371,5 @@ public class MakeMesh : MonoBehaviour
         uint current_texture_id = getSurface(qface).texture_id;
         return mapScriptable.miptexs[current_texture_id];
     }
-
-    static Vector3 vec3Convert(vec3_t vec3)
-    {
-        Vector3 newVec = new Vector3();
-
-        newVec.x = vec3.x;
-        newVec.y = vec3.y;
-        newVec.z = vec3.z;
-
-        return newVec;
-    }
-
 }
 

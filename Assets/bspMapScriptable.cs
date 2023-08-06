@@ -33,7 +33,7 @@ namespace bspMapReader
         public string Entities;
 
         //[SerializeField]
-        public vec3_t[] vertices;
+        public Vector3[] vertices;
 
         [SerializeField]
         public face_t[] faces;
@@ -81,17 +81,18 @@ namespace bspMapReader
         //[System.Serializable]
         public struct vec3_t
         {
-            public float x;
-            public float y;
-            public float z;
+            //public float x;
+            //public float y;
+            //public float z;
             public static int n_bytes = sizeof(float) * 3;
         }
+
 
         //[System.Serializable]
         public struct boundbox_t
         {
-            public vec3_t min;
-            public vec3_t max;
+            public Vector3 min;
+            public Vector3 max;
             public static int n_bytes = vec3_t.n_bytes * 2;
         }
 
@@ -106,7 +107,7 @@ namespace bspMapReader
         public struct model_t
         {
             public boundbox_t bound;
-            public vec3_t origin;
+            public Vector3 origin;
             public int node_id0_bsp;
             public int node_id1_clip1;
             public int node_id2_clip2;
@@ -127,9 +128,11 @@ namespace bspMapReader
             public ushort texinfo_id;          // id to surface_t 
             public Byte typelight;            // type of lighting, for the face
             public Byte baselight;            // from 0xFF (dark) to 0 (bright)
-            public Byte[] light;             // two additional light models  
-            public int lightmap;               // Pointer inside the general light map, or -1
-                                               // this define the start of the face light map
+            public Byte[] light;             // two additional LMData models  
+            public int lightmap;               // Pointer inside the general LMData map, or -1
+                                               // this define the start of the face LMData map
+            public int lightmap_index;
+
             public static int n_bytes = 4 * sizeof(ushort) + 2*sizeof(int) + 4;
         }
 
@@ -153,9 +156,9 @@ namespace bspMapReader
         //[System.Serializable]
         public struct surface_t 
         { 
-            public vec3_t vectorS;            // S vector, horizontal in texture space)
+            public Vector3 vectorS;            // S vector, horizontal in texture space)
             public float distS;              // horizontal offset in texture space
-            public vec3_t vectorT;            // T vector, vertical in texture space
+            public Vector3 vectorT;            // T vector, vertical in texture space
             public float distT;              // vertical offset in texture space
             public uint texture_id;         // Index of Mip Texture
                                             //           must be in [0,numtex[
@@ -187,8 +190,30 @@ namespace bspMapReader
         [System.Serializable]
         public struct lightmap_t
         {
-            public Byte[,] light;
-            public int samples;
+            // Lightmap specific
+            public Byte[] LMData;
+            public int LMSamples;
+            public int LMHeight;
+            public int LMWidth;
+            public Vector2 LMSpan;         // SIZE OF FACE IN LM UNITS
+
+            // Associated Face Data
+            public int faceID;              // ORIGINAL FACE INDEX
+            public Vector3 faceMin;
+            public Vector3 faceMax;
+            public Vector3 faceSpan;
+            
+            public Vector3 vectorS;
+            public Vector3 vectorT;
+            public List<edge_t> edges;
+            public List<Vector3> verts;
+
+            public List<Vector2> vertTextureSpace;
+            public List<Vector2> LM_UVs;
+
+            public int lightmapID;          // INDEX INTO LIGHTMAP DATA
+
+
         }
     }
 }
