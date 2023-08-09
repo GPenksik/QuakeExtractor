@@ -8,137 +8,59 @@ using UnityEngine.XR;
 using System.Linq;
 using static MakeMesh;
 using UnityEditor;
+using System.IO;
+using Unity.Mathematics;
 
 public class MakeMesh : MonoBehaviour
 {
+    public string mapScriptableName = "start.asset";
     public bspMapScriptable mapScriptable;
     public GameObject modelPrefab;
-    //Mesh mesh;
-
-    //List<string> texturesInModel = new List<string>();
+    public bool rebuildT2DArrays = false;
 
     public int modelIndex = 1;
+    public int maxSubModels = 10;
     public string textureName = "None";
 
-    [SerializeField]
     model_t qmodel;
-    [SerializeField]
-    public List<Model> umodels = new List<Model>();
 
-    [System.Serializable]
-    public struct Model
+    [NonSerialized]
+    public List<Model> umodels = new();
+
+    // MAIN METHOD
+    void Awake()
     {
-        public List<SubModel> subModels;
-        public int TotalTris;
-        public int TotalVerts;
-        public List<string> texturesInModel;
-        public List<int> lightmapsInModel;
-        public Model(int a = 0)
-        {
-            subModels = new List<SubModel>();
-            TotalTris = 0;
-            TotalVerts = 0;
-            texturesInModel = new List<string>();
-            lightmapsInModel = new List<int>();
-        }
-        public void calcTotals()
-        {
-            TotalTris = 0;
-            TotalVerts = 0;
-            foreach (SubModel subModel in subModels)
-            {
-                TotalTris += subModel.N_SUBFACES;
-            }
-            TotalVerts = TotalTris * 3;
-        }
+        DestroyOldModels();
+        BuildMesh(false, true);
+        BuildPrefabs(umodels, false);
+
     }
 
-    [System.Serializable]
-    public struct Vert
+    public void BuildMesh(bool buildAll = false, bool inEditor = true)
     {
-        public float x;
-        public float y;
-        public float z;
-        public float u;
-        public float v;
-        //public string textureName;
-    }
 
-    //[System.Serializable]
-    public struct Edge
-    {
-        public string textureName;
-        public Vert[] verts;
-        public Edge(int a = 2)
-        {
-            textureName = "";
-            verts = new Vert[a];
-        }
-    }
-    [System.Serializable]
-    public struct Face
-    {
-        public int N_EDGES;
-        public int N_SUBFACES;
-        public string textureName;
-        public List<Edge> edges;
-        public int lightmap;
-        public lightmap_t light;
-        public bool hasLM;
-        public Byte typelight;            // type of lighting, for the face
-        public Byte baselight;
-        public Face(int a = 10)
-        {
-            N_EDGES = 0;
-            N_SUBFACES = 0;
-            textureName = "";
-            edges = new List<Edge>();
-            hasLM = false;
-            lightmap = -1;
-            typelight = 0;
-            baselight = 255;
-            light = new lightmap_t();
-        }
-        public void addEdge(Edge edge)
-        {
-            N_EDGES++;
-            N_SUBFACES = N_EDGES - 2;
-            edges.Add(edge);
-        }
-    }
-    [System.Serializable]
-    public struct SubModel
-    {
-        public int N_FACES;
-        public int N_SUBFACES;
-        public int N_LM;
-        public string textureName;
-        public List<Face> faces;
+        Shader.SetGlobalInteger("GlobalAdjust", 1);
 
+        string assetPath = "Assets/" + mapScriptableName;
 
-        public SubModel(int a = 10)
-        {
-            N_FACES = 0;
-            N_SUBFACES = 0;
-            textureName = "";
-            faces = new List<Face>();
-            N_LM = 0;
-        }
-        public void addFace(Face face)
-        {
-            N_FACES++;
-            N_SUBFACES += face.N_SUBFACES;
-            if (face.hasLM) { N_LM++; }
-            faces.Add(face);
-        }
-    }
-
-    public void buildMesh(bool buildAll = false)
-    {
         if (mapScriptable == null)
         {
-            Debug.LogWarning("NO MAP LOADED");
-            return;
+            if (File.Exists(assetPath)) {
+                mapScriptable = AssetDatabase.LoadAssetAtPath<bspMapScriptable>(assetPath);
+            } else {
+                Debug.LogWarning("No BSP file specified or found in asset path");
+            }
+        } else {
+            if (mapScriptable.surfaces == null) {
+                if (File.Exists(assetPath)) {
+                    mapScriptable = AssetDatabase.LoadAssetAtPath<bspMapScriptable>(assetPath);
+                    if (mapScriptable.surfaces == null) {
+                        Debug.LogWarning("BSP file does not contain all data, and reloading didn't help");                        
+                    }
+                } else {
+                    Debug.LogWarning("BSP file does not contain all data and cant be reloaded");
+                }
+            }
         }
 
         int modelIndexStart, modelIndexEnd;
@@ -160,7 +82,7 @@ public class MakeMesh : MonoBehaviour
         {
             N_MODELS++;
             int iSubmodel = 0;
-            Model currentuModel = new Model(1);
+            Model currentuModel = new Model(modelIndexLocal);
             //umodels.Add(currentuModel);
             umodels.Add(currentuModel);
             SubModel currentSubModel;
@@ -178,7 +100,7 @@ public class MakeMesh : MonoBehaviour
             {
                 qfaces[n_face] = mapScriptable.faces[offsetToFacesInModel + n_face];
 
-                string textureName = getTextureName(qfaces[n_face]);
+                string textureName = GetTextureName(qfaces[n_face]);
                 // IF NEW TEXTURE, ADD TO LIST.
                 if (!currentuModel.texturesInModel.Contains(textureName))
                 {
@@ -202,9 +124,9 @@ public class MakeMesh : MonoBehaviour
             for (int n_face = 0; n_face < N_FACES; n_face++)
             {
                 // TEXTURE NAME
-                surface_t qsurface = getSurface(qfaces[n_face]);
-                string textureName = getTextureName(qfaces[n_face]);
-                miptex_t miptex = getMiptex(qfaces[n_face]);
+                surface_t qsurface = GetSurface(qfaces[n_face]);
+                string textureName = GetTextureName(qfaces[n_face]);
+                miptex_t miptex = GetMiptex(qfaces[n_face]);
 
                 int lightmap = qfaces[n_face].lightmap;
 
@@ -249,7 +171,10 @@ public class MakeMesh : MonoBehaviour
                 }
                 currentFace.baselight = qfaces[n_face].baselight;
                 currentFace.typelight = qfaces[n_face].typelight;
+                currentFace.AddLight1 = qfaces[n_face].light[0];
+                currentFace.Addlight2 = qfaces[n_face].light[1];
 
+                    
                 // FOR EACH EDGE ADD VERTEX
                 for (int n_edge = 0; n_edge < N_EDGES; n_edge++)
                 {
@@ -321,27 +246,30 @@ public class MakeMesh : MonoBehaviour
 
     } // FINISH MAKE MESH METHOD
 
-    public void buildPrefabs(List<Model> models)
+    public void BuildPrefabs(List<Model> models, bool rebuildT2DArray = false)
     {
         GameObject modelParentGO = DestroyOldModels();
 
         int modelCount = 0;
+
         foreach (Model model in models)
         {
-            for (int n_subModel = 0; n_subModel < model.subModels.Count; n_subModel++)
+            int maxSubModelsLocal = math.min(maxSubModels, model.subModels.Count);
+
+            // for (int n_subModel = 0; n_subModel < model.subModels.Count; n_subModel++)
+            for (int n_subModel = 0; n_subModel < maxSubModelsLocal; n_subModel++)
             {
                 SubModel subModel = model.subModels[n_subModel];
                 GameObject newModel = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(modelPrefab);
                 newModel.transform.parent = modelParentGO.transform;
-                newModel.name = "Model_" + modelCount + "_" + n_subModel;
+                newModel.name = "Model_" + model.modelID + "_" + n_subModel;
 
-                buildMeshFromModelObject builder = newModel.GetComponent<buildMeshFromModelObject>();
-                builder.buildMeshFromModel(subModel);
+                BuildMeshFromModelObject builder = newModel.GetComponent<BuildMeshFromModelObject>();
+                builder.BuildMeshFromModel(subModel, false);
             }
             modelCount++;
         }
     }
-
 
 
     public GameObject DestroyOldModels()
@@ -355,21 +283,158 @@ public class MakeMesh : MonoBehaviour
         return modelParentGO;
     }
 
-    public surface_t getSurface(face_t qface)
+    public surface_t GetSurface(face_t qface)
     {
         // Save surface description to array
         return mapScriptable.surfaces[qface.texinfo_id];
     }
 
-    private string getTextureName(face_t qface)
+    private string GetTextureName(face_t qface)
     {
         // TEXTURE NAME
-        return getMiptex(qface).nameStr;
+        return GetMiptex(qface).nameStr;
     }
-    private miptex_t getMiptex(face_t qface)
+    private miptex_t GetMiptex(face_t qface)
     {
-        uint current_texture_id = getSurface(qface).texture_id;
+        uint current_texture_id = GetSurface(qface).texture_id;
         return mapScriptable.miptexs[current_texture_id];
     }
+
+
+#region STRUCTS
+    // STRUCTS
+    [System.Serializable]
+    public struct Model
+    {
+
+        public readonly int modelID;
+        public int TotalTris;
+        public int TotalVerts;
+        [HideInInspector]
+        public List<SubModel> subModels;
+        public List<string> texturesInModel;
+        [NonSerialized]
+        public List<int> lightmapsInModel;
+
+        // Constructor
+        public Model(int modelID = 100)
+        {
+            this.modelID = modelID;
+            subModels = new List<SubModel>();
+            TotalTris = 0;
+            TotalVerts = 0;
+            texturesInModel = new List<string>();
+            lightmapsInModel = new List<int>();
+        }
+
+        // Methods
+        public void calcTotals()
+        {
+            TotalTris = 0;
+            TotalVerts = 0;
+            foreach (SubModel subModel in subModels)
+            {
+                TotalTris += subModel.N_SUBFACES;
+            }
+            TotalVerts = TotalTris * 3;
+        }
+    }
+
+    [System.Serializable]
+    public struct Vert
+    {
+        public float x;
+        public float y;
+        public float z;
+        public float u;
+        public float v;
+        //public string textureName;
+    }
+
+
+    [System.Serializable]
+    public struct Edge
+    {
+        public string textureName;
+        public Vert[] verts;
+        public Edge(int a = 2)
+        {
+            textureName = "";
+            verts = new Vert[a];
+        }
+    }
+
+    [System.Serializable]
+    public struct Face
+    {
+        public int N_EDGES;
+        public int N_SUBFACES;
+        public string textureName;
+        [HideInInspector]
+        public int lightmap;
+        public lightmap_t light;
+        public bool hasLM;
+        [HideInInspector]
+        public Byte typelight, baselight, AddLight1, Addlight2;
+        [HideInInspector]
+        public List<Edge> edges;
+
+        // Constructor
+        public Face(int a = 10)
+        {
+            N_EDGES = 0;
+            N_SUBFACES = 0;
+            textureName = "";
+            edges = new List<Edge>();
+            hasLM = false;
+            lightmap = -1;
+            typelight = 25;
+            baselight = 254;
+            light = new lightmap_t();
+            AddLight1 = 254;;
+            Addlight2 = 254;
+
+        }
+
+        // Methods
+        public void addEdge(Edge edge)
+        {
+            N_EDGES++;
+            N_SUBFACES = N_EDGES - 2;
+            edges.Add(edge);
+        }
+    }
+
+    [System.Serializable]
+    public struct SubModel
+    {
+        public int N_FACES;
+        public int N_SUBFACES;
+        public int N_LM;
+        public string textureName;
+        [HideInInspector]
+        public List<Face> faces;
+
+        // Constructor
+        public SubModel(int a = 10)
+        {
+            N_FACES = 0;
+            N_SUBFACES = 0;
+            textureName = "";
+            faces = new List<Face>();
+            N_LM = 0;
+        }
+
+        // Methods
+        public void addFace(Face face)
+        {
+            N_FACES++;
+            N_SUBFACES += face.N_SUBFACES;
+            if (face.hasLM) { N_LM++; }
+            faces.Add(face);
+        }
+    }
+
+#endregion
 }
 

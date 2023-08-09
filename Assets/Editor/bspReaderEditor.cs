@@ -1,9 +1,7 @@
+using System.IO;
 using bspMapReader;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 [CustomEditor(typeof(bspReaderMono))]
 class bspReaderEditor : Editor
@@ -12,32 +10,52 @@ class bspReaderEditor : Editor
     {
         base.OnInspectorGUI();
 
-
         if (GUILayout.Button("Parse BSP"))
         {
             bspReaderMono thisReader = target as bspReaderMono;
             thisReader.bspFilename = thisReader.bspFile.name + ".bsp";
             thisReader.paletteFilename = thisReader.paletteFile.name + ".lmp";
-            deleteMap(FindMap(thisReader.bspFile.name));
-            bspMapScriptable mapScriptable = (bspMapScriptable)ScriptableObject.CreateInstance("bspMapScriptable");
-            AssetDatabase.CreateAsset(mapScriptable, "Assets/" + thisReader.bspFile.name + ".asset");
+            // deleteMap(FindMap(thisReader.bspFile.name));
+
+            string fullAssetPath = "Assets/" + thisReader.bspFile.name + ".asset";
+
+            bspMapScriptable mapScriptable;
+            if (File.Exists(fullAssetPath)) {
+                mapScriptable = AssetDatabase.LoadAssetAtPath<bspMapScriptable>(fullAssetPath);
+            } else {
+                mapScriptable = (bspMapScriptable)ScriptableObject.CreateInstance("bspMapScriptable");
+                AssetDatabase.CreateAsset(mapScriptable, "Assets/" + thisReader.bspFile.name + ".asset");
+            }
             EditorUtility.SetDirty(mapScriptable);
+
             thisReader.bspReader.baseMaterial = thisReader.baseMaterial;
+
             thisReader.bspReader.skyMaterial = thisReader.skyMaterial;
-            mapScriptable = thisReader.bspReader.ReadBSP(thisReader.bspFilename, thisReader.paletteFilename, mapScriptable);
+
+            EditorUtility.CopySerialized(thisReader.bspReader.ReadBSP(thisReader.bspFilename, thisReader.paletteFilename, mapScriptable),mapScriptable);
+            
             AssetDatabase.SaveAssets();
+            
             thisReader.mapScriptable = mapScriptable;
+
+            thisReader.palette = thisReader.bspReader.colorPalette;;
+
+
         }
         if (GUILayout.Button("Parse LM"))
         {
             bspReaderMono thisReader = target as bspReaderMono;
             thisReader.bspFilename = thisReader.bspFile.name + ".bsp";
             thisReader.paletteFilename = thisReader.paletteFile.name + ".lmp";
-            EditorUtility.SetDirty(thisReader.mapScriptable);
+            
             thisReader.bspReader.bspFilename = thisReader.bspFilename;
-            thisReader.mapScriptable = thisReader.bspReader.getLightMaps(thisReader.mapScriptable);
+
+            EditorUtility.SetDirty(thisReader.mapScriptable);
+            EditorUtility.CopySerialized(thisReader.mapScriptable,thisReader.bspReader.getLightMaps(thisReader.mapScriptable));
+            
             AssetDatabase.SaveAssets();
         }
+
         if (GUILayout.Button("Rebuild Materials"))
         {
             bspReaderMono thisReader = target as bspReaderMono;
@@ -45,7 +63,17 @@ class bspReaderEditor : Editor
             thisReader.paletteFilename = thisReader.paletteFile.name + ".lmp";
             thisReader.bspReader.baseMaterial = thisReader.baseMaterial;
             thisReader.bspReader.skyMaterial = thisReader.skyMaterial;
-            thisReader.bspReader.rebuildMaterials(thisReader.mapScriptable.miptexs);
+            thisReader.bspReader.RebuildMaterials(thisReader.mapScriptable.miptexs);
+        }
+
+        if (GUILayout.Button("Rebuild Textures"))
+        {
+            bspReaderMono thisReader = target as bspReaderMono;
+            thisReader.bspFilename = thisReader.bspFile.name + ".bsp";
+            thisReader.paletteFilename = thisReader.paletteFile.name + ".lmp";
+            thisReader.bspReader.baseMaterial = thisReader.baseMaterial;
+            thisReader.bspReader.skyMaterial = thisReader.skyMaterial;
+            thisReader.bspReader.GenerateAllTextures(thisReader.mapScriptable);
         }
 
 

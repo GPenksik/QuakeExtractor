@@ -9,6 +9,36 @@ using UnityEditor;
 using System.Collections.Generic;
 using System.Threading;
 using static UnityEditor.ShaderGraph.Internal.KeywordDependentCollection;
+using Unity.Mathematics;
+
+public static class bspPaths {
+
+        static public string pathRoot =  "Assets/";
+        static public string pathBspFiles =  "Assets/";
+        static public string pathTextures =  "Assets/Textures/";
+        static public string pathRawTextures =  "Assets/Textures/Raw/";
+        static public string pathMaterials =  "Assets/Materiaks/";
+        static public string pathMeshes =  "Assets/Meshes/";
+        static public string pathColorMaps =  "Assets/ColorMaps/";
+    // public enum BSPPaths {
+    //     root,
+    //     bspFiles,
+    //     textures,
+    //     rawTextures,
+    //     materials,
+    //     meshes,
+    // }
+
+    // static public Dictionary<BSPPaths,string> pathsDict = new()
+    // {
+    //     {BSPPaths.root , "/Assets/"},
+    //     {BSPPaths.bspFiles, "/Assets/"},
+    //     {BSPPaths.textures, "/Assets/Textures/"},
+    //     {BSPPaths.rawTextures, "/Assets/Textures/Raw/"},
+    //     {BSPPaths.materials, "/Assets/Materiaks/"},
+    //     {BSPPaths.meshes, "/Assets/Meshes/"},
+    // };
+}
 
 public class ReadBSPtoScriptable
 {
@@ -19,13 +49,14 @@ public class ReadBSPtoScriptable
     public int maxFaceId = 0;
     public Material baseMaterial;
     public Material skyMaterial;
-    private Color[] colorPalette = new Color[256];
+    public Color32[] colorPalette = new Color32[256];
+    private byte[,] colorBytes = new byte[256,3];
 
     public bspMapScriptable ReadBSP(string bspFilename, string paletteFilename, bspMapScriptable mapScriptable)
     {
-        Byte[] byteArray;
+        byte[] byteArray;
         this.bspFilename = bspFilename;
-        mapScriptable.palette = loadPalette(paletteFilename);
+        LoadPalette(paletteFilename);
         colorPalette = mapScriptable.palette;
 
         byteArray = getByteArray();
@@ -78,7 +109,6 @@ public class ReadBSPtoScriptable
         mapScriptable.mipheader = ParseMipHeader(byteArray, MIP_OFFFSET);
         mapScriptable.miptexs = ParseTextures(byteArray, MIP_OFFFSET, MIP_SIZE, mapScriptable.mipheader);
 
-
         mapScriptable.maxFaceId = maxFaceId;
 
 
@@ -86,7 +116,7 @@ public class ReadBSPtoScriptable
 
     }
 
-    private Byte[] getByteArray()
+    private byte[] getByteArray()
     {
         string bspPath = "Assets/" + this.bspFilename;
 
@@ -343,7 +373,7 @@ public class ReadBSPtoScriptable
         miptex_t miptex = new miptex_t();
         miptex.tex_offset = offset;
         int i = 0;
-        miptex.name = new Byte[16];
+        miptex.name = new byte[16];
         int N_CHARS = 0;
         for (int n_char = 0; n_char < 16; n_char++)
         {
@@ -381,8 +411,7 @@ public class ReadBSPtoScriptable
         {
             i = mipheader.offset[n_mip];
             miptexs[n_mip] = ParseMiptex(byteArray, offset+i);
-            //generateTexture(byteArray, miptexs[n_mip]);
-        }
+         }
 
         return miptexs;
     }
@@ -627,12 +656,15 @@ public class ReadBSPtoScriptable
         return vertices; 
     }
 
+
     // TEXTURE METHODS
-    private Color[] loadPalette(string paletteFilename)
+    private Color32[] LoadPalette(string paletteFilename)
     {
-        Color[] palette = new Color[256];
-        string palettePath = "Assets/" + paletteFilename;
-        Byte[] byteArray = new byte[768];
+        Color32[] palette = new Color32[256];
+        // byte[,] bytePalette = new byte[256,3];
+        string palettePath = bspPaths.pathColorMaps + paletteFilename;
+
+        byte[] byteArray = new byte[768];
         if (File.Exists(palettePath))
         {
             using (var stream = File.Open(palettePath, FileMode.Open))
@@ -647,68 +679,229 @@ public class ReadBSPtoScriptable
         for (int n_color = 0; n_color < byteArray.Length / 3; n_color++)
         {
             int offset = n_color * 3;
-            float r, g, b;
-            r = (float)byteArray[offset] / 255f;
-            g = (float)byteArray[offset + 1] / 255f;
-            b = (float)byteArray[offset + 2] / 255f;
-            palette[n_color] = new Color(r, g, b, 1f);
+            colorBytes[n_color,0] = byteArray[offset];
+            colorBytes[n_color,1] = byteArray[offset + 1];
+            colorBytes[n_color,2] = byteArray[offset + 2];
+            palette[n_color] = new Color32(colorBytes[n_color,0], colorBytes[n_color,1], colorBytes[n_color,2], 255);
         }
+
+        Texture2DArray paletteTexture;
+
+        string paletteTextureName = "palette";
+        string paletteTexturePath = bspPaths.pathColorMaps + paletteTextureName + ".asset";
+
+        if (File.Exists(paletteTexturePath)) {
+            Texture2DArray newTexture = new(256,1,1,TextureFormat.RGBA32, mipChain : false);
+            newTexture.name = paletteTextureName;
+            paletteTexture = AssetDatabase.LoadAssetAtPath<Texture2DArray>(paletteTexturePath);
+            EditorUtility.CopySerialized(newTexture, paletteTexture);
+        } else {
+            paletteTexture = new(256,1,1,TextureFormat.RGBA32,false);;
+            AssetDatabase.CreateAsset(paletteTexture, paletteTexturePath);
+        }
+
+        var rawPalettePixels = paletteTexture.GetPixels32(0,0);
+
+        for (int n_color = 0; n_color < palette.Length; n_color++) {
+            paletteTexture.SetPixels32(palette,0);
+        }
+
+        paletteTexture.Apply();
+
+        AssetDatabase.SaveAssets();
 
         return palette;
     }
     
-    private Texture2D generateTexture(Byte[] byteArray, miptex_t miptex)
-    {
-        uint width = miptex.width;
-        uint height = miptex.height;
-        int offset = miptex.tex_offset;
-        Texture2D texture = new Texture2D((int)width, (int)height);
+    public enum TexType {
+        NORMAL,
+        ANIMATED,
+        WATER,
+        SKY
+    }
+    public struct TexturePack {
+        public TexType texType;
+        public List<string> textureNames;
+        public int numTex;
+        public List<miptex_t> miptexs;
+        public TexturePack(string textureName, TexType newTexType, miptex_t miptex) {
+            texType = newTexType;
+            textureNames = new List<string>(){textureName};
+            numTex = 1;
+            miptexs = new List<miptex_t>() {miptex};
+        }
+        public void AddTexture(string textureName, miptex_t miptex) {
+            textureNames.Add(textureName);
+            miptexs.Add(miptex);
+            numTex++;
+            textureNames.Sort();
+        }
 
-        Byte colorIndex;
-        Color32 color = new UnityEngine.Color(0, 0, 0, 255);
-        int i = (int)miptex.offset1;
-        for (int h = 0; h < height; h++)
+    }
+    public void GenerateAllTextures(bspMapScriptable mapScriptable) {
+
+        Dictionary<string, TexturePack> texturePacks = new();
+        
+        byte[] byteArray = getByteArray();
+
+        foreach (miptex_t miptex in mapScriptable.miptexs) 
         {
-            for (int w = 0; w < width; w++)
+            TexType thisTexType;
+            string textureName = miptex.nameStr;
+
+            if (textureName.StartsWith("+")) 
             {
-                colorIndex = byteArray[offset + i];
-                i++;
-                texture.SetPixel(w, h, getColor(colorIndex));
+                thisTexType = TexType.ANIMATED;
+                string animName = textureName[2..];
+
+                if (texturePacks.ContainsKey(animName)) 
+                {
+                    texturePacks[animName].AddTexture(textureName, miptex);
+                } else 
+                {
+                    texturePacks.Add(animName, new TexturePack(textureName, thisTexType, miptex));
+                }
+            } else if (textureName.StartsWith("*"))
+            {
+                textureName = textureName.Replace("*", "-");
+                thisTexType = TexType.WATER;
+                texturePacks.Add(textureName, new TexturePack(textureName, thisTexType, miptex));
+            } else if (textureName.StartsWith("sky")) 
+            {
+                thisTexType = TexType.SKY;
+                texturePacks.Add(textureName, new TexturePack(textureName, thisTexType, miptex));
+            } else 
+            {
+                thisTexType = TexType.NORMAL;
+                texturePacks.Add(textureName, new TexturePack(textureName, thisTexType, miptex));
             }
         }
 
-        texture.name = miptex.nameStr.Replace("*", "");
-
-        byte[] bytes = texture.EncodeToPNG();
-        var dirPath = "Assets/Textures/";
-        if (!Directory.Exists(dirPath))
+        foreach (var texturePack in texturePacks)
         {
-            Directory.CreateDirectory(dirPath);
+            GenerateTexture(byteArray, texturePack.Key, texturePack.Value);
         }
-        var texturePath = dirPath + texture.name + ".png";
-        File.WriteAllBytes(texturePath, bytes);
 
-        createMaterialAsset(texture.name);
-
-        return texture;
+        AssetDatabase.SaveAssets();
     }
 
-    private void createMaterialAsset(string textureFilename)
+    delegate Texture2DArray TextureGenerator(TextureFormat textureFormat);
+
+    delegate T AssetGenerator<T>(string assetName, string assetPath);
+
+    static void SaveTexture(string texturePath, Texture2DArray texture) {
+        if (File.Exists(texturePath)) {
+            Texture2DArray oldTexture = AssetDatabase.LoadAssetAtPath<Texture2DArray>(texturePath);
+            EditorUtility.CopySerialized(texture, oldTexture);
+            AssetDatabase.SaveAssets();
+        } else {
+            AssetDatabase.CreateAsset(texture, texturePath);
+        }
+    }
+
+    private void GenerateTexture(Byte[] byteArray, string texturePackName, TexturePack texturePack)
+    {
+        static Texture2DArray MakeTexture(int width, int height, int mipCount, int frameCount, TextureFormat textureFormat, string textureName) 
+        {
+            bool linear = false;
+            if (textureFormat == TextureFormat.RGBA32) 
+            {
+                linear = false;
+            }
+            
+            Texture2DArray newTexture = new (width, height, frameCount, textureFormat, mipCount, linear : linear, createUninitialized : false) {
+                    filterMode = FilterMode.Point,
+                    anisoLevel = 0,
+                    name = textureName,
+                };     
+            return newTexture;
+        }
+
+        miptex_t miptex = texturePack.miptexs[0];
+        int width = (int)miptex.width;
+        int height = (int)miptex.height;
+        int frameOffset;
+
+        int mipCount = 4;
+        int frameCount = texturePack.miptexs.Count;
+        string textureName = miptex.nameStr.Replace("*", "-");
+
+        var texDir = "Assets/Textures/";
+        var rawDir = "Assets/Textures/Raw/";
+        if (!Directory.Exists(texDir))
+        {
+            Directory.CreateDirectory(texDir);
+        }
+        if (!Directory.Exists(rawDir))
+        {
+            Directory.CreateDirectory(rawDir);
+        }
+
+        var texturePath = texDir + textureName + ".asset";
+        var rawPath = rawDir + textureName + ".asset";
+
+        TextureGenerator makeThisTexture = textureFormat => MakeTexture(width, height, mipCount, frameCount, textureFormat, textureName);
+
+        Texture2DArray texture = makeThisTexture(TextureFormat.R8);
+        Texture2DArray rawTexture = makeThisTexture(TextureFormat.RGBA32);
+
+        uint[] mipOffsets = new uint[4] { miptex.offset1, miptex.offset2, miptex.offset4, miptex.offset8};
+
+        for (int frameNumber = 0; frameNumber < frameCount; frameNumber++) 
+        {
+            miptex = texturePack.miptexs[frameNumber];
+            frameOffset = miptex.tex_offset;
+
+            for (int mipLevel = 0; mipLevel < mipCount; mipLevel++) 
+            {
+                int mipOffset = (int)mipOffsets[mipLevel];
+                int mipMapLength = (width>>mipLevel) * (height>>mipLevel);
+                int pixelCount = 0;
+
+                byte[] mipmapDataByte = new byte[mipMapLength];
+                Color32[] mipmapDataColor = new Color32[mipMapLength];
+                byte colorIndex;
+
+                for (int h = 0; h < height>>mipLevel; h++)
+                {
+                    for (int w = 0; w < width>>mipLevel; w++)
+                    {
+                        
+                        colorIndex = byteArray[frameOffset + mipOffset + pixelCount];
+
+                        mipmapDataByte[pixelCount] = colorIndex;
+                        mipmapDataColor[pixelCount] = colorPalette[colorIndex];
+
+                        pixelCount++;
+                    }
+                }
+
+                rawTexture.SetPixels32(mipmapDataColor, frameNumber, mipLevel);
+                texture.SetPixelData(mipmapDataByte, mipLevel, frameNumber);
+            }
+        }
+
+        SaveTexture(texturePath,texture);
+        SaveTexture(rawPath,rawTexture);
+    }
+
+    private void CreateNewMaterialAsset(string textureFilename)
     {
         string matPath = "Assets/Materials/";
-        Material material = getNewMaterialFromTexture(textureFilename);
+        Material material = GetNewMaterialFromTexture(textureFilename);
+
         AssetDatabase.CreateAsset(material, matPath + textureFilename+".mat");
     }
 
-    private Material getNewMaterialFromTexture(string textureName)
+    private Material GetNewMaterialFromTexture(string textureName)
     {
         string texPath = "Assets/Textures/";
-        string fullTexPath = texPath + textureName + ".png";
+        string fullTexPath = texPath + textureName + ".asset";
         if (File.Exists(fullTexPath))
         {
-            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(fullTexPath);
+            Texture2DArray texture = AssetDatabase.LoadAssetAtPath<Texture2DArray>(fullTexPath);
             Material material;
-            if (textureName == "sky1")
+            if (textureName.StartsWith("sky") || textureName == "teleport")
             {
                 material = new Material(skyMaterial);
             } else
@@ -724,52 +917,48 @@ public class ReadBSPtoScriptable
         }
     }
 
-    public void rebuildMaterials(miptex_t[] miptexs)
+    public void RebuildMaterials(miptex_t[] miptexs)
     {
         string texPath = "Assets/Textures/";
         string matPath = "Assets/Materials/";
         string textureName;
         foreach (miptex_t miptex in miptexs)
         {
-            textureName = miptex.nameStr.Replace("*", "");
-            string texturePath = texPath + textureName + ".png";
+            textureName = miptex.nameStr.Replace("*", "-");
+
+            if (textureName.StartsWith("+")) {
+                if (textureName.Substring(1,1) != "0") {
+                    continue;
+                };
+            }
+
+            string texturePath = texPath + textureName + ".asset";
             string materialPath = matPath + textureName + ".mat";
-            Texture2D texture = (Texture2D)AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+            Texture2DArray texture = (Texture2DArray)AssetDatabase.LoadAssetAtPath<Texture2DArray>(texturePath);
             if (texture == null)
             {
                 Debug.LogWarning("Texture " + textureName + " not found");
                 continue;
             }
 
-            Material material = (Material)AssetDatabase.LoadMainAssetAtPath(materialPath);
+
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (material == null)
             {
-                createMaterialAsset(textureName);
+                CreateNewMaterialAsset(textureName);
             } else
             {
-                EditorUtility.CopySerialized(getNewMaterialFromTexture(textureName), material);
+                EditorUtility.CopySerialized(GetNewMaterialFromTexture(textureName), material);
                 material.name = textureName;
-                AssetDatabase.SaveAssets();
-                //AssetDatabase.ImportAsset(materialPath, ImportAssetOptions.ImportRecursive);
             }
+            
         }
+        AssetDatabase.SaveAssets();
     }
 
-    private Color getColor(Byte colorIndex) { 
+    private Color32 getColor(Byte colorIndex) { 
     
         return colorPalette[colorIndex];
 
     }
-
-    // MISC METHODS
-    //static Vector3 vec3Convert(vec3_t vec3)
-    //{
-    //    Vector3 newVec = new Vector3();
-
-    //    newVec.x = vec3.x;
-    //    newVec.y = vec3.y;
-    //    newVec.z = vec3.z;
-
-    //    return newVec;
-    //}
 }

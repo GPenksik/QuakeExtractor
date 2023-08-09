@@ -14,15 +14,15 @@ public class makeMeshEditor : Editor
         MakeMesh thisMaker = target as MakeMesh;
         if (GUILayout.Button("Make Mesh"))
         {
-            thisMaker.buildMesh();
+            thisMaker.BuildMesh(false, false);
         }
         if (GUILayout.Button("Make All"))
         {
-            thisMaker.buildMesh(true);
+            thisMaker.BuildMesh(true);
         }
         if (GUILayout.Button("Build Prefabs"))
         {
-            thisMaker.buildPrefabs(thisMaker.umodels);
+            thisMaker.BuildPrefabs(thisMaker.umodels);
         }
         if (GUILayout.Button("Destroy Prefabs"))
         {

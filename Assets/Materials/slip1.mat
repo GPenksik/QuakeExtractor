@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-2323830554223738551
+--- !u!114 &-1335504196538906607
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
@@ -21,7 +21,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: slip1
-  m_Shader: {fileID: -6465566751694194690, guid: 604c9ee38bd86d940bfb1adf7136a4d2, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 8a643b05e73c8db45944c90019fad097, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -46,6 +46,14 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _ColormapCustomFunction_43afc53b57104f35898281312b1d7134_palette_4_Texture2DArray:
+        m_Texture: {fileID: 18700000, guid: 74edb595a69728740b94a7b6a5c33eb7, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _ColormapCustomFunction_43afc53b57104f35898281312b1d7134_tex1_4_Texture2DArray:
+        m_Texture: {fileID: 18700000, guid: 74edb595a69728740b94a7b6a5c33eb7, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -62,8 +70,12 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _LM_1:
+        m_Texture: {fileID: 18700000, guid: 5fb688044917e604494407d2e20b62d0, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: afe6362f4bf1a5d4a87a4f99cb6a33bc, type: 3}
+        m_Texture: {fileID: 18700000, guid: 158309b75616f9343ab42897c388b5a0, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -78,8 +90,32 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _SampleTexture2D_c421ae57ea6f4b11a52fc7f319fae06c_Texture_1_Texture2D:
+        m_Texture: {fileID: 2800000, guid: 177b85239a2c7644a92d057da831f6f2, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SpecGlossMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Texture2DArrayAsset_002f90503ec24061bcbb64c241394fb5_Out_0_Texture2DArray:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Texture2DArrayAsset_238d5dc4b93a4703b8fe2f22ec56564e_Out_0_Texture2DArray:
+        m_Texture: {fileID: 18700000, guid: 74edb595a69728740b94a7b6a5c33eb7, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Texture2DArrayAsset_bce5f21e53da4513b08260c357c07dc4_Out_0_Texture2DArray:
+        m_Texture: {fileID: 18700000, guid: 74edb595a69728740b94a7b6a5c33eb7, type: 2}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Texture2DAsset_1a2a06ebeda34cd4b2661e6186d61bda_Out_0_Texture2D:
+        m_Texture: {fileID: 2800000, guid: 177b85239a2c7644a92d057da831f6f2, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TextureSize_44227ef393d445ba970bff8db173636d_Texture_1_Texture2D:
+        m_Texture: {fileID: 18700000, guid: 8be7404c26ad2ed488cb2c2e64f0e52f, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -98,6 +134,7 @@ Material:
     m_Floats:
     - _AlphaClip: 0
     - _AlphaToMask: 0
+    - _AnimationFrames: 1
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BlendOp: 0
@@ -116,11 +153,15 @@ Material:
     - _Glossiness: 0
     - _GlossinessSource: 0
     - _GlossyReflections: 0
+    - _LightLevelOffset: 0
+    - _LightMapAmount: 0.9
+    - _LightOffset: 1
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.005
     - _QueueControl: 0
     - _QueueOffset: 0
+    - _RENDER_UNLIT: 0
     - _ReceiveShadows: 1
     - _SampleGI: 0
     - _Shininess: 0
@@ -133,10 +174,12 @@ Material:
     - _SrcBlendAlpha: 1
     - _Surface: 0
     - _Test: 0
+    - _VisualizeMipRange: 0
     - _WorkflowMode: 0
     - _ZTest: 4
     - _ZWrite: 1
     - _ZWriteControl: 0
+    - _mipMapRange: 20
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
