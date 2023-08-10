@@ -11,33 +11,15 @@ using System.Threading;
 using static UnityEditor.ShaderGraph.Internal.KeywordDependentCollection;
 using Unity.Mathematics;
 
-public static class bspPaths {
+public static class BspPaths {
 
-        static public string pathRoot =  "Assets/";
-        static public string pathBspFiles =  "Assets/";
-        static public string pathTextures =  "Assets/Textures/";
-        static public string pathRawTextures =  "Assets/Textures/Raw/";
-        static public string pathMaterials =  "Assets/Materiaks/";
-        static public string pathMeshes =  "Assets/Meshes/";
-        static public string pathColorMaps =  "Assets/ColorMaps/";
-    // public enum BSPPaths {
-    //     root,
-    //     bspFiles,
-    //     textures,
-    //     rawTextures,
-    //     materials,
-    //     meshes,
-    // }
-
-    // static public Dictionary<BSPPaths,string> pathsDict = new()
-    // {
-    //     {BSPPaths.root , "/Assets/"},
-    //     {BSPPaths.bspFiles, "/Assets/"},
-    //     {BSPPaths.textures, "/Assets/Textures/"},
-    //     {BSPPaths.rawTextures, "/Assets/Textures/Raw/"},
-    //     {BSPPaths.materials, "/Assets/Materiaks/"},
-    //     {BSPPaths.meshes, "/Assets/Meshes/"},
-    // };
+        static public string Root =  "Assets/";
+        static public string BspFiles =  "Assets/";
+        static public string Textures =  "Assets/Resources/Textures/";
+        static public string RawTextures =  "Assets/Resources/Textures/Raw/";
+        static public string Materials =  "Assets/Resources/Materiaks/";
+        static public string Meshes =  "Assets/Resources/Meshes/";
+        static public string ColorMaps =  "Assets/Resources/ColorMaps/";
 }
 
 public class ReadBSPtoScriptable
@@ -118,7 +100,7 @@ public class ReadBSPtoScriptable
 
     private byte[] getByteArray()
     {
-        string bspPath = "Assets/" + this.bspFilename;
+        string bspPath = BspPaths.Root + this.bspFilename;
 
 
         if (File.Exists(bspPath))
@@ -662,7 +644,7 @@ public class ReadBSPtoScriptable
     {
         Color32[] palette = new Color32[256];
         // byte[,] bytePalette = new byte[256,3];
-        string palettePath = bspPaths.pathColorMaps + paletteFilename;
+        string palettePath = BspPaths.ColorMaps + paletteFilename;
 
         byte[] byteArray = new byte[768];
         if (File.Exists(palettePath))
@@ -688,7 +670,7 @@ public class ReadBSPtoScriptable
         Texture2DArray paletteTexture;
 
         string paletteTextureName = "palette";
-        string paletteTexturePath = bspPaths.pathColorMaps + paletteTextureName + ".asset";
+        string paletteTexturePath = BspPaths.ColorMaps + paletteTextureName + ".asset";
 
         if (File.Exists(paletteTexturePath)) {
             Texture2DArray newTexture = new(256,1,1,TextureFormat.RGBA32, mipChain : false);
@@ -826,8 +808,8 @@ public class ReadBSPtoScriptable
         int frameCount = texturePack.miptexs.Count;
         string textureName = miptex.nameStr.Replace("*", "-");
 
-        var texDir = "Assets/Textures/";
-        var rawDir = "Assets/Textures/Raw/";
+        var texDir = BspPaths.Textures;
+        var rawDir = BspPaths.RawTextures;
         if (!Directory.Exists(texDir))
         {
             Directory.CreateDirectory(texDir);
@@ -887,7 +869,7 @@ public class ReadBSPtoScriptable
 
     private void CreateNewMaterialAsset(string textureFilename)
     {
-        string matPath = "Assets/Materials/";
+        string matPath = BspPaths.Materials;
         Material material = GetNewMaterialFromTexture(textureFilename);
 
         AssetDatabase.CreateAsset(material, matPath + textureFilename+".mat");
@@ -895,7 +877,7 @@ public class ReadBSPtoScriptable
 
     private Material GetNewMaterialFromTexture(string textureName)
     {
-        string texPath = "Assets/Textures/";
+        string texPath = BspPaths.Textures;
         string fullTexPath = texPath + textureName + ".asset";
         if (File.Exists(fullTexPath))
         {
@@ -919,8 +901,8 @@ public class ReadBSPtoScriptable
 
     public void RebuildMaterials(miptex_t[] miptexs)
     {
-        string texPath = "Assets/Textures/";
-        string matPath = "Assets/Materials/";
+        string texPath = BspPaths.Textures;
+        string matPath = BspPaths.Materials;
         string textureName;
         foreach (miptex_t miptex in miptexs)
         {

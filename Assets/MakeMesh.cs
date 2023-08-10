@@ -1,12 +1,8 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using bspMapReader;
 using static bspMapReader.bspMapScriptable;
 using System;
-using UnityEngine.XR;
-using System.Linq;
-using static MakeMesh;
 using UnityEditor;
 using System.IO;
 using Unity.Mathematics;
@@ -39,7 +35,7 @@ public class MakeMesh : MonoBehaviour
     public void BuildMesh(bool buildAll = false, bool inEditor = true)
     {
 
-        Shader.SetGlobalInteger("GlobalAdjust", 1);
+        // Shader.SetGlobalInteger("GlobalAdjust", 1);
 
         string assetPath = "Assets/" + mapScriptableName;
 

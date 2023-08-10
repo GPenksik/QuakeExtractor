@@ -4,6 +4,9 @@ using UnityEngine;
 
 public static class server_qh
 {
+
+//! MOVED THIS TO sv_main
+//
 //* DEFINE CLIENT STRUCT FOR LIGHTMAP
 /* 	
     for (j=0, client = svs.clients ; j<svs.maxclients ; j++, client++)

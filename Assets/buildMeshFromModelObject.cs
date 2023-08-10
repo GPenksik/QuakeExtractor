@@ -26,9 +26,9 @@ public class BuildMeshFromModelObject : MonoBehaviour
     public void BuildMeshFromModel(SubModel subModel, bool rebuildT2DArray = false, bool inEditor = true)
     {
         string modelName = gameObject.name;
-        string matPath = "Assets/Materials/";
-        string texPath = "Assets/Textures/";
-        string LMPath = "Assets/Textures/LMs/";
+        string matPath = "Assets/Resources/Materials/";
+        string texPath = "Assets/Resources/Textures/";
+        string LMPath = "Assets/Resouces/Textures/LMs/";
         string assetName = modelName;
         string extension = ".asset";
         
@@ -647,7 +647,7 @@ public class BuildMeshFromModelObject : MonoBehaviour
     {
         MeshFilter meshFilter = gameObject.GetComponent<MeshFilter>();
         Mesh mesh = meshFilter.sharedMesh;
-        string meshPath = "Assets/Meshes/" + gameObject.name + ".asset";
+        string meshPath = BspPaths.Meshes + gameObject.name + ".asset";
         AssetDatabase.CreateAsset(mesh, meshPath);
     }
 #endif
