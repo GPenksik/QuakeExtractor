@@ -15,7 +15,7 @@ Texture2DArray:
   m_IsAlphaChannelOptional: 0
   serializedVersion: 2
   m_ColorSpace: 1
-  m_Format: 5
+  m_Format: 1
   m_Width: 64
   m_Height: 64
   m_Depth: 3

@@ -4,44 +4,49 @@ using System.Text;
 using UnityEngine;
 using bspMapReader;
 using static bspMapReader.bspMapScriptable;
-using Color = UnityEngine.Color;
 using UnityEditor;
 using System.Collections.Generic;
-using System.Threading;
-using static UnityEditor.ShaderGraph.Internal.KeywordDependentCollection;
-using Unity.Mathematics;
+using UnityQuake.Utils;
+using static UnityQuake.Utils.BspPaths;
+using static UnityQuake.Utils.ReadBinary;
 
-public static class BspPaths {
-
-        static public string Root =  "Assets/";
-        static public string BspFiles =  "Assets/";
-        static public string Textures =  "Assets/Resources/Textures/";
-        static public string RawTextures =  "Assets/Resources/Textures/Raw/";
-        static public string Materials =  "Assets/Resources/Materiaks/";
-        static public string Meshes =  "Assets/Resources/Meshes/";
-        static public string ColorMaps =  "Assets/Resources/ColorMaps/";
-}
+namespace UnityQuake.MapReader
+{
 
 public class ReadBSPtoScriptable
 {
+    /**--------------------------------------------
+     *               FIELDS AND ALL
+     *---------------------------------------------**/
+#region HEADER
     public int BSPVersion;
 
     public string bspFilename;
 
-    public int maxFaceId = 0;
     public Material baseMaterial;
     public Material skyMaterial;
     public Color32[] colorPalette = new Color32[256];
     private byte[,] colorBytes = new byte[256,3];
 
+    #endregion
+
+    /**========================================================================
+     *                           MAIN METHODS
+     *========================================================================**/
+#region MAIN
     public bspMapScriptable ReadBSP(string bspFilename, string paletteFilename, bspMapScriptable mapScriptable)
     {
         byte[] byteArray;
         this.bspFilename = bspFilename;
-        LoadPalette(paletteFilename);
+
+        //* Get colour maps
+        colorPalette = LoadPalette(paletteFilename);
+        LoadColormap("colormap.lmp", colorPalette);
         colorPalette = mapScriptable.palette;
 
-        byteArray = getByteArray();
+        //* Get raw data
+        byteArray = GetByteArray(bspFilename);
+        BSPVersion = toInt(byteArray, 0);
 
         if (byteArray == null )
         {
@@ -49,12 +54,13 @@ public class ReadBSPtoScriptable
             return mapScriptable;
         }
 
-        BSPVersion = toInt(byteArray, 0);
+        //* PARSE DATA
         mapScriptable.headers = ParseHeaders(byteArray, 4);
 
         int N_MODELS = mapScriptable.headers.headers[(int)dheader_t_enum.MODELS].size / model_t.n_bytes;
         int MODELS_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.MODELS].offset;
         mapScriptable.models = ParseModels(byteArray, MODELS_OFFSET, N_MODELS);
+
 
         int ENTITIES_OFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.ENTITIES].offset;
         int ENTITIES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.ENTITIES].size;
@@ -65,71 +71,57 @@ public class ReadBSPtoScriptable
         int VERTS_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.VERTICES].size;
         mapScriptable.vertices = ParseVectices(byteArray, VERTS_OFFSET, VERTS_SIZE);
 
+
         int FACES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.FACES].offset;
         int FACES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.FACES].size;
         mapScriptable.faces = ParseFaces(byteArray, FACES_OFFFSET, FACES_SIZE);
+
 
         int EDGES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.EDGES].offset;
         int EDGES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.EDGES].size;
         mapScriptable.edges = ParseEdges(byteArray, EDGES_OFFFSET, EDGES_SIZE);
 
+
         int LEDGES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LEDGES].offset;
         int LEDGES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LEDGES].size;
         mapScriptable.lstedges = ParseLstEdges(byteArray, LEDGES_OFFFSET, LEDGES_SIZE);
+
 
         int LFACES_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LFACE].offset;
         int LFACES_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LFACE].size;
         mapScriptable.lface = ParseLFaces(byteArray, LFACES_OFFFSET, LFACES_SIZE);
 
+
         int TEX_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.TEXINFO].offset;
         int TEX_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.TEXINFO].size;
         mapScriptable.surfaces = ParseTexInfos(byteArray, TEX_OFFFSET, TEX_SIZE);
 
+
         int MIP_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.MIPTEX].offset;
         int MIP_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.MIPTEX].size;
+
 
         mapScriptable.mipheader = ParseMipHeader(byteArray, MIP_OFFFSET);
         mapScriptable.miptexs = ParseTextures(byteArray, MIP_OFFFSET, MIP_SIZE, mapScriptable.mipheader);
 
-        mapScriptable.maxFaceId = maxFaceId;
-
-
-        return mapScriptable;
-
-    }
-
-    private byte[] getByteArray()
-    {
-        string bspPath = BspPaths.Root + this.bspFilename;
-
-
-        if (File.Exists(bspPath))
-        {
-            using (var stream = File.Open(bspPath, FileMode.Open))
-            {
-                using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
-                {
-                    return ReadAllBytes(reader);
-                }
-            }
-        }
-        else
-        {
-            Debug.LogError("BSP FILE NOT FOUND");
-            return null;
-        }
-    }
-
-    public bspMapScriptable getLightMaps(bspMapScriptable mapScriptable)
-    {
-        int LM_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].offset;
-        int LM_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].size;
-
-        mapScriptable = ParseLightmaps(getByteArray(), LM_OFFFSET, LM_SIZE, mapScriptable);
 
         return mapScriptable;
     }
+    #endregion
 
+#region LIGHTMAPS
+        
+        public bspMapScriptable GetLightMaps(bspMapScriptable mapScriptable)
+        {
+            int LM_OFFFSET = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].offset;
+            int LM_SIZE = mapScriptable.headers.headers[(int)dheader_t_enum.LIGHTMAPS].size;
+    
+            mapScriptable = ParseLightmaps(GetByteArray(bspFilename), LM_OFFFSET, LM_SIZE, mapScriptable);
+    
+            return mapScriptable;
+        }
+    
+    #endregion
     private bspMapScriptable ParseLightmaps(byte[] byteArray, int LM_OFFFSET, int LM_SIZE, bspMapScriptable mapScriptable)
     {
         //face_t[] faces = mapScriptable.faces;
@@ -297,366 +289,419 @@ public class ReadBSPtoScriptable
         return mapScriptable;
     }
 
-    private byte[] ReadAllBytes(BinaryReader reader)
-    {
-        const int bufferSize = 4096;
-        using (var ms = new MemoryStream())
+#region BitConverter wrappers
+        
+        public int toInt(Byte[] byteArray, int offset)
         {
-            byte[] buffer = new byte[bufferSize];
-            int count;
-            while ((count = reader.Read(buffer, 0, buffer.Length)) != 0)
-                ms.Write(buffer, 0, count);
-            return ms.ToArray();
+            return BitConverter.ToInt32(byteArray,(int)offset);
         }
-    }
-
-    public int toInt(Byte[] byteArray, int offset)
-    {
-        return BitConverter.ToInt32(byteArray,(int)offset);
-    }
-
-    public uint toUInt(Byte[] byteArray, int offset)
-    {
-        return BitConverter.ToUInt32(byteArray, (int)offset);
-    }
-
-    public short toShort(Byte[] byteArray, int offset)
-    {
-        return BitConverter.ToInt16(byteArray,(int)offset);
-    }
-
-    public ushort toUShort(Byte[] byteArray, int offset)
-    {
-        return BitConverter.ToUInt16(byteArray, (int)offset);
-    }
-
-
-    // PARSE DATA
-    public mipheader_t ParseMipHeader(Byte[] byteArray, int offset)
-    {
-        mipheader_t mipheader = new mipheader_t();
-
-        int i = 0;
-        mipheader.numtex = toInt(byteArray, offset + i);
-        i += 4;
-        mipheader.offset = new int[mipheader.numtex];
-        for (int n_offset = 0;  n_offset < mipheader.numtex;n_offset++)
+    
+        public uint toUInt(Byte[] byteArray, int offset)
         {
-            mipheader.offset[n_offset] = toInt(byteArray, offset + i);
+            return BitConverter.ToUInt32(byteArray, (int)offset);
+        }
+    
+        public short toShort(Byte[] byteArray, int offset)
+        {
+            return BitConverter.ToInt16(byteArray,(int)offset);
+        }
+    
+        public ushort toUShort(Byte[] byteArray, int offset)
+        {
+            return BitConverter.ToUInt16(byteArray, (int)offset);
+        }
+    
+    #endregion
+
+    /**--------------------------------------------
+     *               PARSER FUNCTIONS
+     *---------------------------------------------**/
+#region PARSERS
+        public mipheader_t ParseMipHeader(Byte[] byteArray, int offset)
+        {
+            mipheader_t mipheader = new mipheader_t();
+    
+            int i = 0;
+            mipheader.numtex = toInt(byteArray, offset + i);
             i += 4;
-        }
-        mipheader.n_bytes = 4 + 4*mipheader.numtex;
-
-        return mipheader;
-    }
-    
-    public miptex_t ParseMiptex(Byte[] byteArray, int offset)
-    {
-        miptex_t miptex = new miptex_t();
-        miptex.tex_offset = offset;
-        int i = 0;
-        miptex.name = new byte[16];
-        int N_CHARS = 0;
-        for (int n_char = 0; n_char < 16; n_char++)
-        {
-            if (byteArray[offset + n_char] == 0)
+            mipheader.offset = new int[mipheader.numtex];
+            for (int n_offset = 0;  n_offset < mipheader.numtex;n_offset++)
             {
-                break;
+                mipheader.offset[n_offset] = toInt(byteArray, offset + i);
+                i += 4;
             }
-            miptex.name[n_char] = byteArray[offset + n_char];
-            N_CHARS++;
-        }
-        i += 16;
-        miptex.nameStr = Encoding.UTF8.GetString(miptex.name).Substring(0,N_CHARS);
-        miptex.width = toUInt(byteArray, offset + i);
-        i += 4;
-        miptex.height = toUInt(byteArray, offset + i);
-        i += 4;
-        miptex.offset1 = toUInt(byteArray, offset + i);
-        i += 4;
-        miptex.offset2 = toUInt(byteArray, offset + i);
-        i += 4;
-        miptex.offset4 = toUInt(byteArray, offset + i);
-        i += 4;
-        miptex.offset8 = toUInt(byteArray, offset + i);
-
-        return miptex;
-    }
-
-    public miptex_t[] ParseTextures(Byte[] byteArray, int offset, int size, mipheader_t mipheader)
-    {
-        int n_mips = mipheader.numtex;
-        miptex_t[] miptexs = new miptex_t[n_mips];
-
-        int i = 0;
-        for (int n_mip = 0; n_mip < n_mips; n_mip++)
-        {
-            i = mipheader.offset[n_mip];
-            miptexs[n_mip] = ParseMiptex(byteArray, offset+i);
-         }
-
-        return miptexs;
-    }
-
-    public surface_t ParseSurface(Byte[] byteArray, int offset)
-    {
-        surface_t surface = new surface_t();
-
-        int i = 0;
-
-        surface.vectorS = ParseVec3(byteArray, offset + i);
-        i += vec3_t.n_bytes;
-        surface.distS = BitConverter.ToSingle(byteArray, offset + i);
-        i += sizeof(float);
-        surface.vectorT = ParseVec3(byteArray, offset + i);
-        i += vec3_t.n_bytes;
-        surface.distT = BitConverter.ToSingle(byteArray, offset + i);
-        i += sizeof(float);
-        surface.texture_id = toUInt(byteArray, offset + i);
-        i += sizeof(uint);
-        surface.animated = toUInt(byteArray, offset + i);
-
-
-        return surface;
-
-    }
+            mipheader.n_bytes = 4 + 4*mipheader.numtex;
     
-    public surface_t[] ParseTexInfos(Byte[] byteArray, int offset, int size)
-    {
-        int N_SURFS = size / surface_t.n_bytes;
-        surface_t[] surfaces = new surface_t[N_SURFS];
-
-        int i = 0;
-        for (int n_surf = 0; n_surf < N_SURFS; n_surf++)
-        {
-            surfaces[n_surf] = ParseSurface(byteArray, offset + i); ;
-            i += surface_t.n_bytes;
-        }
-
-        return surfaces;
-    }
-    
-    public short[] ParseLstEdges(Byte[] byteArray, int offset, int size)
-    {
-        int N_LEDGES = size / 4;
-        short[] ledges = new short[N_LEDGES];
-
-        int i = 0;
-        for (int n_ledge = 0; n_ledge < N_LEDGES; n_ledge++)
-        {
-            ledges[n_ledge] = (short)toInt(byteArray, offset + i);
-            i += 4;
-        }
-
-        return ledges;
-    }
-
-    public ushort[] ParseLFaces(Byte[] byteArray, int offset, int size)
-    {
-        int N_LFACES = size / 2;
-        ushort[] lfaces = new ushort[N_LFACES];
-
-        int i = 0;
-        for (int n_lface = 0; n_lface < N_LFACES; n_lface++)
-        {
-            lfaces[n_lface] = toUShort(byteArray, offset + i);
-            i += 2;
-        }
-
-        return lfaces;
-    }
-
-    public edge_t ParseEdge(Byte[] byteArray, int offset)
-    {
-        int i = 0;
-        edge_t edge = new edge_t();
-        edge.vertex0 = toShort(byteArray, offset + i);
-        i += 2;
-        edge.vertex1 = toShort(byteArray, offset + i);
-
-        return edge;
-    }
-
-    public edge_t[] ParseEdges(Byte[] byteArray, int offset, int size)
-    {
-        int N_EDGES = size / edge_t.n_bytes;
-        edge_t[] faces = new edge_t[N_EDGES];
-
-        int i = 0;
-        for (int n_edge = 0; n_edge < N_EDGES; n_edge++)
-        {
-            faces[n_edge] = ParseEdge(byteArray, offset + i); ;
-            i += edge_t.n_bytes;
-        }
-
-        return faces;
-    }
-
-    public face_t ParseFace(Byte[] byteArray, int offset)
-    {
-        int i = 0;
-        face_t face = new face_t();
-        face.plane_id = toUShort(byteArray, offset + i);
-        i += 2;
-        face.side = toUShort(byteArray, offset + i);
-        i += 2;
-        face.ledge_id = toInt(byteArray, offset + i);
-        i += 4;
-        face.ledge_num = toUShort(byteArray, offset + i);
-        i += 2;
-        face.texinfo_id = toUShort(byteArray, offset + i);
-        i += 2;
-        face.typelight = byteArray[offset + i];
-        i += 1;
-        face.baselight = byteArray[offset + i];
-        i += 1;
-        face.light = new byte[2];
-        face.light[0] = byteArray[offset + i];
-        i += 1;
-        face.light[1] = byteArray[offset + i];
-        i += 1;
-        face.lightmap = toInt(byteArray, offset + i);
-
-        return face;
-    }
-
-    public face_t[] ParseFaces(Byte[] byteArray, int offset, int size)
-    {
-        int N_FACES = size / face_t.n_bytes;
-        face_t[] faces = new face_t[N_FACES];
-
-        int i = 0;
-        for (int n_face = 0; n_face < N_FACES; n_face++)
-        {
-            faces[n_face] = ParseFace(byteArray, offset + i); ;
-            i += face_t.n_bytes;
-        }
-
-        return faces;
-    }
-
-    public dheader_t ParseHeaders(Byte[] byteArray, int offset)
-    {
-        int N_LUMPS = 15;
-        dheader_t headers = new dheader_t();
-        headers.headers = new dentry_t[N_LUMPS];
-
-        int i_offset = offset;
-
-        for (int i = 0; i < N_LUMPS; i++)
-        {
-            headers.headers[i].offset = toInt(byteArray, i_offset);
-            i_offset += 4;
-            headers.headers[i].size = toInt(byteArray, i_offset);
-            i_offset += 4;
-        }
-
-        return headers;
-    }
-
-    public model_t ParseModel(Byte[] byteArray, int offset)
-    {
-        int i = 0;
-        model_t model = new model_t();
-        model.bound = ParseBoundBox(byteArray, offset + i);
-        i += boundbox_t.n_bytes;
-        model.origin = ParseVec3(byteArray, offset + i);
-        i += vec3_t.n_bytes;
-        model.node_id0_bsp = BitConverter.ToInt32(byteArray, offset + i);
-        i += 4;
-        model.node_id1_clip1 = BitConverter.ToInt32(byteArray, offset + i);
-        i += 4;
-        model.node_id2_clip2 = BitConverter.ToInt32(byteArray, offset + i);
-        i += 4;
-        model.node_id3_0 = BitConverter.ToInt32(byteArray, offset + i);
-        i += 4;
-        model.numleafs = BitConverter.ToInt32(byteArray, offset + i);
-        i += 4;
-        model.face_id = BitConverter.ToInt32(byteArray, offset + i);
-        i += 4;
-        model.face_num = BitConverter.ToInt32(byteArray, offset + i);
-
-        return model;
-    }
-    
-    public model_t[] ParseModels(Byte[] byteArray, int MODELS_OFFSET, int N_MODELS)
-    {
-        model_t[] models = new model_t[N_MODELS];
-
-        int i = 0;
-        for (int n_model = 0; n_model < N_MODELS; n_model++)
-        {
-            models[n_model] = ParseModel(byteArray, MODELS_OFFSET + i); ;
-            i += model_t.n_bytes;
-
-            if (models[n_model].face_id > maxFaceId)
-            {
-                maxFaceId = models[n_model].face_id;
-            }
-        }
-
-        return models;
-    }
-
-    public boundbox_t ParseBoundBox(Byte[] byteArray, int offset)
-    {
-        boundbox_t bound = new boundbox_t();
-        bound.min = ParseVec3(byteArray, offset);
-        bound.max = ParseVec3(byteArray, offset+vec3_t.n_bytes);
-        return bound;
-    }
-
-    public Vector3 ParseVec3(Byte[] byteArray, int offset)
-    {
-        Vector3 vec3 = new Vector3();
-        vec3.x = BitConverter.ToSingle(byteArray, offset);
-        vec3.y = BitConverter.ToSingle(byteArray, offset+4);
-        vec3.z = BitConverter.ToSingle(byteArray, offset+8);
-
-        return vec3;
-    }
-
-    public string ParseEntities(Byte[] byteArray, int ENTITIES_OFFSET, int ENTITIES_SIZE)
-    {
-        string entities = System.Text.Encoding.ASCII.GetString(byteArray, ENTITIES_OFFSET, ENTITIES_SIZE);
-        return entities;
-    }
-
-    public Vector3[] ParseVectices(Byte[] byteArray, int VERTS_OFFSET, int VERTS_SIZE)
-    {
-        int N_VERTS = VERTS_SIZE / vec3_t.n_bytes;
-        Vector3[] vertices = new Vector3[N_VERTS];
-
-        int i = 0;
-        for (int n_vert = 0;  n_vert < N_VERTS;n_vert++)
-        {
-            Vector3 vert = ParseVec3(byteArray, VERTS_OFFSET + i);
-            i += vec3_t.n_bytes;
-            vertices[n_vert] = vert;
+            return mipheader;
         }
         
-        return vertices; 
+        public miptex_t ParseMiptex(Byte[] byteArray, int offset)
+        {
+            miptex_t miptex = new miptex_t();
+            miptex.tex_offset = offset;
+            int i = 0;
+            miptex.name = new byte[16];
+            int N_CHARS = 0;
+            for (int n_char = 0; n_char < 16; n_char++)
+            {
+                if (byteArray[offset + n_char] == 0)
+                {
+                    break;
+                }
+                miptex.name[n_char] = byteArray[offset + n_char];
+                N_CHARS++;
+            }
+            i += 16;
+            miptex.nameStr = Encoding.UTF8.GetString(miptex.name).Substring(0,N_CHARS);
+            miptex.width = toUInt(byteArray, offset + i);
+            i += 4;
+            miptex.height = toUInt(byteArray, offset + i);
+            i += 4;
+            miptex.offset1 = toUInt(byteArray, offset + i);
+            i += 4;
+            miptex.offset2 = toUInt(byteArray, offset + i);
+            i += 4;
+            miptex.offset4 = toUInt(byteArray, offset + i);
+            i += 4;
+            miptex.offset8 = toUInt(byteArray, offset + i);
+    
+            return miptex;
+        }
+    
+        public miptex_t[] ParseTextures(Byte[] byteArray, int offset, int size, mipheader_t mipheader)
+        {
+            int n_mips = mipheader.numtex;
+            miptex_t[] miptexs = new miptex_t[n_mips];
+    
+            int i = 0;
+            for (int n_mip = 0; n_mip < n_mips; n_mip++)
+            {
+                i = mipheader.offset[n_mip];
+                miptexs[n_mip] = ParseMiptex(byteArray, offset+i);
+             }
+    
+            return miptexs;
+        }
+    
+        public surface_t ParseSurface(Byte[] byteArray, int offset)
+        {
+            surface_t surface = new surface_t();
+    
+            int i = 0;
+    
+            surface.vectorS = ParseVec3(byteArray, offset + i);
+            i += vec3_t.n_bytes;
+            surface.distS = BitConverter.ToSingle(byteArray, offset + i);
+            i += sizeof(float);
+            surface.vectorT = ParseVec3(byteArray, offset + i);
+            i += vec3_t.n_bytes;
+            surface.distT = BitConverter.ToSingle(byteArray, offset + i);
+            i += sizeof(float);
+            surface.texture_id = toUInt(byteArray, offset + i);
+            i += sizeof(uint);
+            surface.animated = toUInt(byteArray, offset + i);
+    
+    
+            return surface;
+    
+        }
+        
+        public surface_t[] ParseTexInfos(Byte[] byteArray, int offset, int size)
+        {
+            int N_SURFS = size / surface_t.n_bytes;
+            surface_t[] surfaces = new surface_t[N_SURFS];
+    
+            int i = 0;
+            for (int n_surf = 0; n_surf < N_SURFS; n_surf++)
+            {
+                surfaces[n_surf] = ParseSurface(byteArray, offset + i); ;
+                i += surface_t.n_bytes;
+            }
+    
+            return surfaces;
+        }
+        
+        public short[] ParseLstEdges(Byte[] byteArray, int offset, int size)
+        {
+            int N_LEDGES = size / 4;
+            short[] ledges = new short[N_LEDGES];
+    
+            int i = 0;
+            for (int n_ledge = 0; n_ledge < N_LEDGES; n_ledge++)
+            {
+                ledges[n_ledge] = (short)toInt(byteArray, offset + i);
+                i += 4;
+            }
+    
+            return ledges;
+        }
+    
+        public ushort[] ParseLFaces(Byte[] byteArray, int offset, int size)
+        {
+            int N_LFACES = size / 2;
+            ushort[] lfaces = new ushort[N_LFACES];
+    
+            int i = 0;
+            for (int n_lface = 0; n_lface < N_LFACES; n_lface++)
+            {
+                lfaces[n_lface] = toUShort(byteArray, offset + i);
+                i += 2;
+            }
+    
+            return lfaces;
+        }
+    
+        public edge_t ParseEdge(Byte[] byteArray, int offset)
+        {
+            int i = 0;
+            edge_t edge = new edge_t();
+            edge.vertex0 = toShort(byteArray, offset + i);
+            i += 2;
+            edge.vertex1 = toShort(byteArray, offset + i);
+    
+            return edge;
+        }
+    
+        public edge_t[] ParseEdges(Byte[] byteArray, int offset, int size)
+        {
+            int N_EDGES = size / edge_t.n_bytes;
+            edge_t[] faces = new edge_t[N_EDGES];
+    
+            int i = 0;
+            for (int n_edge = 0; n_edge < N_EDGES; n_edge++)
+            {
+                faces[n_edge] = ParseEdge(byteArray, offset + i); ;
+                i += edge_t.n_bytes;
+            }
+    
+            return faces;
+        }
+    
+        public face_t ParseFace(Byte[] byteArray, int offset)
+        {
+            int i = 0;
+            face_t face = new face_t();
+            face.plane_id = toUShort(byteArray, offset + i);
+            i += 2;
+            face.side = toUShort(byteArray, offset + i);
+            i += 2;
+            face.ledge_id = toInt(byteArray, offset + i);
+            i += 4;
+            face.ledge_num = toUShort(byteArray, offset + i);
+            i += 2;
+            face.texinfo_id = toUShort(byteArray, offset + i);
+            i += 2;
+            face.typelight = byteArray[offset + i];
+            i += 1;
+            face.baselight = byteArray[offset + i];
+            i += 1;
+            face.light = new byte[2];
+            face.light[0] = byteArray[offset + i];
+            i += 1;
+            face.light[1] = byteArray[offset + i];
+            i += 1;
+            face.lightmap = toInt(byteArray, offset + i);
+    
+            return face;
+        }
+    
+        public face_t[] ParseFaces(Byte[] byteArray, int offset, int size)
+        {
+            int N_FACES = size / face_t.n_bytes;
+            face_t[] faces = new face_t[N_FACES];
+    
+            int i = 0;
+            for (int n_face = 0; n_face < N_FACES; n_face++)
+            {
+                faces[n_face] = ParseFace(byteArray, offset + i); ;
+                i += face_t.n_bytes;
+            }
+    
+            return faces;
+        }
+    
+        public dheader_t ParseHeaders(Byte[] byteArray, int offset)
+        {
+            int N_LUMPS = 15;
+            dheader_t headers = new dheader_t();
+            headers.headers = new dentry_t[N_LUMPS];
+    
+            int i_offset = offset;
+    
+            for (int i = 0; i < N_LUMPS; i++)
+            {
+                headers.headers[i].offset = toInt(byteArray, i_offset);
+                i_offset += 4;
+                headers.headers[i].size = toInt(byteArray, i_offset);
+                i_offset += 4;
+            }
+    
+            return headers;
+        }
+    
+        public model_t ParseModel(Byte[] byteArray, int offset)
+        {
+            int i = 0;
+            model_t model = new model_t();
+            model.bound = ParseBoundBox(byteArray, offset + i);
+            i += boundbox_t.n_bytes;
+            model.origin = ParseVec3(byteArray, offset + i);
+            i += vec3_t.n_bytes;
+            model.node_id0_bsp = BitConverter.ToInt32(byteArray, offset + i);
+            i += 4;
+            model.node_id1_clip1 = BitConverter.ToInt32(byteArray, offset + i);
+            i += 4;
+            model.node_id2_clip2 = BitConverter.ToInt32(byteArray, offset + i);
+            i += 4;
+            model.node_id3_0 = BitConverter.ToInt32(byteArray, offset + i);
+            i += 4;
+            model.numleafs = BitConverter.ToInt32(byteArray, offset + i);
+            i += 4;
+            model.face_id = BitConverter.ToInt32(byteArray, offset + i);
+            i += 4;
+            model.face_num = BitConverter.ToInt32(byteArray, offset + i);
+    
+            return model;
+        }
+        
+        public model_t[] ParseModels(Byte[] byteArray, int MODELS_OFFSET, int N_MODELS)
+        {
+            model_t[] models = new model_t[N_MODELS];
+    
+            int i = 0;
+            for (int n_model = 0; n_model < N_MODELS; n_model++)
+            {
+                models[n_model] = ParseModel(byteArray, MODELS_OFFSET + i); ;
+                i += model_t.n_bytes;
+            }
+    
+            return models;
+        }
+    
+        public boundbox_t ParseBoundBox(Byte[] byteArray, int offset)
+        {
+            boundbox_t bound = new boundbox_t();
+            bound.min = ParseVec3(byteArray, offset);
+            bound.max = ParseVec3(byteArray, offset+vec3_t.n_bytes);
+            return bound;
+        }
+    
+        public Vector3 ParseVec3(Byte[] byteArray, int offset)
+        {
+            Vector3 vec3 = new Vector3();
+            vec3.x = BitConverter.ToSingle(byteArray, offset);
+            vec3.y = BitConverter.ToSingle(byteArray, offset+4);
+            vec3.z = BitConverter.ToSingle(byteArray, offset+8);
+    
+            return vec3;
+        }
+    
+        public string ParseEntities(Byte[] byteArray, int ENTITIES_OFFSET, int ENTITIES_SIZE)
+        {
+            string entities = System.Text.Encoding.ASCII.GetString(byteArray, ENTITIES_OFFSET, ENTITIES_SIZE);
+            return entities;
+        }
+    
+        public Vector3[] ParseVectices(Byte[] byteArray, int VERTS_OFFSET, int VERTS_SIZE)
+        {
+            int N_VERTS = VERTS_SIZE / vec3_t.n_bytes;
+            Vector3[] vertices = new Vector3[N_VERTS];
+    
+            int i = 0;
+            for (int n_vert = 0;  n_vert < N_VERTS;n_vert++)
+            {
+                Vector3 vert = ParseVec3(byteArray, VERTS_OFFSET + i);
+                i += vec3_t.n_bytes;
+                vertices[n_vert] = vert;
+            }
+            
+            return vertices; 
+        }
+    
+#endregion
+
+
+    /**----------------------
+    *    TEXTURES AND MATERIALS
+    *------------------------**/
+    
+
+#region TEXTURES AND MATERIALS
+
+    delegate Texture2DArray TextureGenerator(TextureFormat textureFormat);
+
+    delegate T AssetGenerator<T>(string assetName, string assetPath);
+
+    private Color32[] LoadColormap(string colormapFilename, Color32[] palette) {
+        byte[] colormapIndices = new byte[768*64];
+        Color32[] colormapColors = new Color32[256*64];
+        
+        string colormapPath = BspPaths.ColorMaps + colormapFilename;
+
+        byte[] byteArray; 
+        if (File.Exists(colormapPath))
+        {
+            // using (var stream = File.Open(colormapPath, FileMode.Open))
+            // {
+            //     using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
+            //     {
+            //         byteArray = ReadAllBytes(reader);
+            //     }
+            // }
+            byteArray = GetByteArray(colormapFilename, BspPaths.ColorMaps);
+        } else {
+            Debug.LogError("Colormap file not found!");
+            return new Color32[0];
+        }
+
+        for (int n_color = 0; n_color < colormapColors.Length; n_color++)
+        {   
+            colormapIndices[n_color] = byteArray[n_color];
+            colormapColors[n_color] = palette[byteArray[n_color]];
+        }
+
+        Texture2DArray colormapTexture;
+
+        string colormapTextureName = "colormap";
+        string colormapTexturePath = BspPaths.ColorMaps + colormapTextureName + ".asset";
+
+        if (File.Exists(colormapTexturePath)) {
+            Texture2DArray newTexture = new(256, 64, 1, TextureFormat.RGBA32, mipChain: false)
+            {
+                name = colormapTextureName
+            };
+            colormapTexture = AssetDatabase.LoadAssetAtPath<Texture2DArray>(colormapTexturePath);
+            EditorUtility.CopySerialized(newTexture, colormapTexture);
+        } else {
+            colormapTexture = new(256,64,1,TextureFormat.RGBA32,false);;
+            AssetDatabase.CreateAsset(colormapTexture, colormapTexturePath);
+        }
+
+        var rawColormapPixels = colormapTexture.GetPixels32(0,0);
+
+        for (int n_color = 0; n_color < colormapColors.Length; n_color++) {
+            colormapTexture.SetPixels32(colormapColors,0);
+        }
+
+        // colormapTexture.Apply();
+
+        AssetDatabase.SaveAssets();
+
+        return colormapColors;
     }
 
-
-    // TEXTURE METHODS
+    public enum TexType {
+        NORMAL,
+        ANIMATED,
+        WATER,
+        SKY
+    }
+    
     private Color32[] LoadPalette(string paletteFilename)
     {
         Color32[] palette = new Color32[256];
-        // byte[,] bytePalette = new byte[256,3];
-        string palettePath = BspPaths.ColorMaps + paletteFilename;
 
-        byte[] byteArray = new byte[768];
-        if (File.Exists(palettePath))
-        {
-            using (var stream = File.Open(palettePath, FileMode.Open))
-            {
-                using (var reader = new BinaryReader(stream, Encoding.UTF8, false))
-                {
-                    byteArray = ReadAllBytes(reader);
-                }
-            }
-        }
+        byte[] byteArray = GetByteArray(paletteFilename, BspPaths.ColorMaps);
 
         for (int n_color = 0; n_color < byteArray.Length / 3; n_color++)
         {
@@ -695,12 +740,6 @@ public class ReadBSPtoScriptable
         return palette;
     }
     
-    public enum TexType {
-        NORMAL,
-        ANIMATED,
-        WATER,
-        SKY
-    }
     public struct TexturePack {
         public TexType texType;
         public List<string> textureNames;
@@ -720,11 +759,12 @@ public class ReadBSPtoScriptable
         }
 
     }
+    
     public void GenerateAllTextures(bspMapScriptable mapScriptable) {
 
         Dictionary<string, TexturePack> texturePacks = new();
         
-        byte[] byteArray = getByteArray();
+        byte[] byteArray = GetByteArray(bspFilename);
 
         foreach (miptex_t miptex in mapScriptable.miptexs) 
         {
@@ -766,10 +806,6 @@ public class ReadBSPtoScriptable
 
         AssetDatabase.SaveAssets();
     }
-
-    delegate Texture2DArray TextureGenerator(TextureFormat textureFormat);
-
-    delegate T AssetGenerator<T>(string assetName, string assetPath);
 
     static void SaveTexture(string texturePath, Texture2DArray texture) {
         if (File.Exists(texturePath)) {
@@ -943,4 +979,7 @@ public class ReadBSPtoScriptable
         return colorPalette[colorIndex];
 
     }
+#endregion
+
+}
 }

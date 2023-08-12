@@ -3,8 +3,10 @@ using bspMapReader;
 using UnityEditor;
 using UnityEngine;
 
+namespace UnityQuake.MapReader 
+{
 [CustomEditor(typeof(bspReaderMono))]
-class bspReaderEditor : Editor
+class BspReaderEditor : Editor
 {
     public override void OnInspectorGUI()
     {
@@ -51,7 +53,7 @@ class bspReaderEditor : Editor
             thisReader.bspReader.bspFilename = thisReader.bspFilename;
 
             EditorUtility.SetDirty(thisReader.mapScriptable);
-            EditorUtility.CopySerialized(thisReader.mapScriptable,thisReader.bspReader.getLightMaps(thisReader.mapScriptable));
+            EditorUtility.CopySerialized(thisReader.mapScriptable,thisReader.bspReader.GetLightMaps(thisReader.mapScriptable));
             
             AssetDatabase.SaveAssets();
         }
@@ -102,4 +104,5 @@ class bspReaderEditor : Editor
             AssetDatabase.DeleteAsset(AssetDatabase.GetAssetPath(mapScriptable));
         }
     }
+}
 }

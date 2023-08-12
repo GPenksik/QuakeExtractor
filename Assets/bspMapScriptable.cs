@@ -10,6 +10,9 @@ namespace bspMapReader
 {
     public class bspMapScriptable : ScriptableObject
     {
+
+        public byte[] bsp;
+
         public Color32[] palette;
         // ACTUAL 
         public int maxFaceId = 0;
@@ -85,8 +88,9 @@ namespace bspMapReader
         }
 
         [System.Serializable]
-        public struct vec3_t
+        public ref struct vec3_t
         {
+            
             //public float x;
             //public float y;
             //public float z;

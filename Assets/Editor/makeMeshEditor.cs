@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEditor;
 using bspMapReader;
 
+namespace UnityQuake.MapReader
+{
 [CustomEditor(typeof(MakeMesh))]
 public class makeMeshEditor : Editor
 {
@@ -14,15 +16,15 @@ public class makeMeshEditor : Editor
         MakeMesh thisMaker = target as MakeMesh;
         if (GUILayout.Button("Make Mesh"))
         {
-            thisMaker.BuildMesh(false, false);
+            thisMaker.BuildMesh(false, true);
         }
         if (GUILayout.Button("Make All"))
         {
-            thisMaker.BuildMesh(true);
+            thisMaker.BuildMesh(true, true);
         }
         if (GUILayout.Button("Build Prefabs"))
         {
-            thisMaker.BuildPrefabs(thisMaker.umodels);
+            thisMaker.BuildPrefabs(thisMaker.umodels, thisMaker.rebuildT2DArrays, true);
         }
         if (GUILayout.Button("Destroy Prefabs"))
         {
@@ -31,5 +33,5 @@ public class makeMeshEditor : Editor
 
 
     }
-
+}
 }

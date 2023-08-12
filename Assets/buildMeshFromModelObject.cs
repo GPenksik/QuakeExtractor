@@ -5,9 +5,12 @@ using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
 using static bspMapReader.bspMapScriptable;
-using static MakeMesh;
 using UnityEngine.Assertions;
+using UnityQuake.Utils;
+using static UnityQuake.MapReader.MakeMesh;
 
+namespace UnityQuake.MapReader
+{
 public class BuildMeshFromModelObject : MonoBehaviour
 {
     static readonly float SCALE = 40f;
@@ -26,9 +29,9 @@ public class BuildMeshFromModelObject : MonoBehaviour
     public void BuildMeshFromModel(SubModel subModel, bool rebuildT2DArray = false, bool inEditor = true)
     {
         string modelName = gameObject.name;
-        string matPath = "Assets/Resources/Materials/";
-        string texPath = "Assets/Resources/Textures/";
-        string LMPath = "Assets/Resouces/Textures/LMs/";
+        string matPath = BspPaths.Materials;
+        string texPath = BspPaths.Textures;
+        string LMPath = BspPaths.Textures + "LMs/";
         string assetName = modelName;
         string extension = ".asset";
         
@@ -228,41 +231,19 @@ public class BuildMeshFromModelObject : MonoBehaviour
 
         Material material; 
 
-
-
         int numberOfAnimationFrames = 1;
         Texture2DArray texture = AssetDatabase.LoadAssetAtPath<Texture2DArray>(texPath + textureName + ".asset");
-        if (textureName.StartsWith("sky")) 
-        {
-            material = AssetDatabase.LoadAssetAtPath<Material>(matPath + textureName + ".mat");
-        } else if (textureName.StartsWith("-")) 
-        {
-            material = AssetDatabase.LoadAssetAtPath<Material>(matPath + textureName + ".mat");
-        } else 
-        {
-            material = AssetDatabase.LoadAssetAtPath<Material>(matPath + textureName + ".mat");
-            numberOfAnimationFrames = texture.depth;
-            
-        }
 
-        if (inEditor) {
-            thisRenderer.sharedMaterial = material;
-        } else {
-            // thisRenderer.EnsureComponent<MaterialInstance>().Material = material;
-            thisRenderer.material = material;
-        }
+        material = AssetDatabase.LoadAssetAtPath<Material>(matPath + textureName + ".mat");
+        numberOfAnimationFrames = texture.depth;
+        thisRenderer.sharedMaterial = material;
 
         if (LM_COUNT > 0) {
             // SHOULD ALWAYS EXIST AT THIS POINT, BUT CHECK ANYWAY
             Assert.IsTrue(File.Exists(fullPathToLM));
             Texture2DArray thisT2D = AssetDatabase.LoadAssetAtPath<Texture2DArray>(fullPathToLM);
-            material.SetTexture("_LM_1", thisT2D);
+            thisRenderer.sharedMaterial.SetTexture("_LM_1", thisT2D);
         }
-
-        material.SetTexture("_MainTex", texture);
-
-        
-
 
         if (numberOfAnimationFrames > 1) {
             thisRenderer.sharedMaterial.SetFloat("_AnimationFrames", numberOfAnimationFrames);
@@ -281,9 +262,9 @@ public class BuildMeshFromModelObject : MonoBehaviour
             meshCollider.sharedMesh = mesh;
         }
 
-        #if UNITY_EDITOR
-            CreateMeshAsset();
-        #endif
+        // if (inEditor) {
+        //     CreateMeshAsset();
+        // }
     } // END METHOD
 
     static void updateLightmapAsset(string fullPathToLM, Texture2DArray T2DArray)
@@ -641,7 +622,6 @@ public class BuildMeshFromModelObject : MonoBehaviour
 
 
 
-
 #if UNITY_EDITOR
     public void CreateMeshAsset()
     {
@@ -651,4 +631,5 @@ public class BuildMeshFromModelObject : MonoBehaviour
         AssetDatabase.CreateAsset(mesh, meshPath);
     }
 #endif
+}
 }

@@ -1,9 +1,9 @@
 using bspMapReader;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
+namespace UnityQuake.MapReader
+{
 public class bspReaderMono : MonoBehaviour
 {
     public Color32[] palette;
@@ -24,4 +24,5 @@ public class bspReaderMono : MonoBehaviour
 
 
     public ReadBSPtoScriptable bspReader = new ReadBSPtoScriptable();
+}
 }

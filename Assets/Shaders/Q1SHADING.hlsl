@@ -30,11 +30,11 @@ void GetLitColor_float(float3 ColorIn, float ColorIndex, float LightLevel, float
 {
     float toInt = 256.0;
     float toFloat = 1.0/toInt;
-    // Invert LightLevel
 
     float to64Int = 64.0;
     float to64Float = 1.0/to64Int;
 
+    // Invert Light Level
     LightLevel = (1-LightLevel)*to64Int;
 
     // Offset Lightlevel by Scale

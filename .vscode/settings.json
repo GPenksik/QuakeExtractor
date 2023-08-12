@@ -7,9 +7,10 @@
     "obj": true,
     ".vs": true,
     ".vscode": true,
-    "*.csproj":true,
     "*.orig":true,
     "*.user":true,
     "*.userprefs":true
-    }
+    },
+    "dotnet.defaultSolution": "QuakeExtractor.sln",
+    "eppz-code.disableAnalytics": true
 }

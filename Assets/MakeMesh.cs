@@ -7,6 +7,8 @@ using UnityEditor;
 using System.IO;
 using Unity.Mathematics;
 
+namespace UnityQuake.MapReader
+{
 public class MakeMesh : MonoBehaviour
 {
     public string mapScriptableName = "start.asset";
@@ -26,10 +28,9 @@ public class MakeMesh : MonoBehaviour
     // MAIN METHOD
     void Awake()
     {
-        DestroyOldModels();
-        BuildMesh(false, true);
-        BuildPrefabs(umodels, false);
-
+        // DestroyOldModels();
+        // BuildMesh(false, false);
+        // BuildPrefabs(umodels, false, false);
     }
 
     public void BuildMesh(bool buildAll = false, bool inEditor = true)
@@ -242,7 +243,7 @@ public class MakeMesh : MonoBehaviour
 
     } // FINISH MAKE MESH METHOD
 
-    public void BuildPrefabs(List<Model> models, bool rebuildT2DArray = false)
+    public void BuildPrefabs(List<Model> models, bool rebuildT2DArray = false, bool inEditor = false)
     {
         GameObject modelParentGO = DestroyOldModels();
 
@@ -261,7 +262,7 @@ public class MakeMesh : MonoBehaviour
                 newModel.name = "Model_" + model.modelID + "_" + n_subModel;
 
                 BuildMeshFromModelObject builder = newModel.GetComponent<BuildMeshFromModelObject>();
-                builder.BuildMeshFromModel(subModel, false);
+                builder.BuildMeshFromModel(subModel, rebuildT2DArray, inEditor);
             }
             modelCount++;
         }
@@ -434,3 +435,4 @@ public class MakeMesh : MonoBehaviour
 #endregion
 }
 
+}
