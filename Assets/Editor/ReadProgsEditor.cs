@@ -22,7 +22,7 @@ public class ReadProgsEditor : Editor
 
         if (GUILayout.Button("Update"))
         {
-            thisReader.UpdateDdef();
+            thisReader.UpdateFuncByIndex();
         }
     }
 }

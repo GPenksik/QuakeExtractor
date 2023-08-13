@@ -39,46 +39,51 @@ public class ProgsBuffer : MonoBehaviour
     }
 }
 
-public static class ByteBuffer
-{
-    public static byte[] buffer;
-
-    public static int bufferSize { get => buffer.Length; }
-
-    public static bool isInitialized;
-
-    public static void InitializeBuffer(int length)
+#region ByteBuffer
+    public static class ByteBuffer
     {
-        buffer = new byte[length];
-        isInitialized = true;
-    }
-
-    public static void InitializeBufferFromByteArray(byte[] byteArrayIn) {
-        buffer = byteArrayIn;
-        isInitialized = true;
-
-    }
-
-    public static void Add(SerializableObject SO, int dest) 
-    {
-        if (isInitialized) 
+        public static byte[] buffer;
+    
+        public static int bufferSize { get => buffer.Length; }
+    
+        public static bool isInitialized;
+    
+        public static void InitializeBuffer(int length)
         {
-            SO.Serialize(dest);
+            buffer = new byte[length];
+            isInitialized = true;
         }
-    }
-
-        internal static void Clear()
+    
+        public static void InitializeBufferFromByteArray(byte[] byteArrayIn) {
+            buffer = byteArrayIn;
+            isInitialized = true;
+    
+        }
+    
+        public static void Add(SerializableObject SO, int dest) 
         {
-            buffer = null;
-            isInitialized = false;
+            if (isInitialized) 
+            {
+                SO.Serialize(dest);
+            }
         }
-    }
+    
+            internal static void Clear()
+            {
+                buffer = null;
+                isInitialized = false;
+            }
+        }
+    
+#endregion
 
+#region ProgsReader
 public static class ProgsReader {
     public static dprograms_t progs;
     public static BinaryReader reader;
-    static long savedPosition;
+    // static long savedPosition;
     public static bool isInitialized { get => IsInitialized(); }
+    public static Stack<long> savedPositions = new();
 
     public static void Initialize(BinaryReader newReader, dprograms_t newProgs) {
         if (isInitialized) {
@@ -87,7 +92,6 @@ public static class ProgsReader {
         }
         progs = newProgs;
         reader = newReader;
-        savedPosition = 0;
     }
 
     public static void FillProgs() 
@@ -153,7 +157,7 @@ public static class ProgsReader {
     public static void MarkPosition()
     {
         if (isInitialized) {
-            savedPosition = reader.BaseStream.Position;
+            savedPositions.Push(reader.BaseStream.Position);
         } else {
             Debug.LogError("ProgsReader not initialized");
         }
@@ -161,7 +165,9 @@ public static class ProgsReader {
 
     public static void ReturnToMark()
     {
-        reader.BaseStream.Position = savedPosition;
+        if (savedPositions.Count > 0) {
+            reader.BaseStream.Position = savedPositions.Pop();
+        }
     }
 
     static bool IsInitialized() 
@@ -173,141 +179,144 @@ public static class ProgsReader {
         }
     }
 }
+#endregion
 
-public class testDataType : SerializableObject {
-
-    public int value1;
-    public int value2;
-
-    public testDataType(int first, int second)
-    {
-        objBytes += 8;
-        value1 = first;
-        s.Add(new SInt(value1));
-        value2 = second;
-        s.Add(new SInt(value2));
-    }
-
-    public override void DeSerialize()
-    {
-        s.Update();
-        value1 = ((SInt)s.serializableObjects[0]).value;
-        value2 = ((SInt)s.serializableObjects[1]).value;
-    }
-
-    public override byte[] Serialize(int pointer)
-    {
-        this.pointer = pointer;
-        return s.GetBytes(pointer);
-    }
-}
-
-public class testContainer : SerializableObject {
-
-    public testDataType dt1;
-    public testDataType dt2;
-
-    public testContainer(testDataType dt1, testDataType dt2) {
-        objBytes += dt1.objBytes;
-        this.dt1 = dt1;
-        s.Add(dt1);
-        objBytes += dt2.objBytes;
-        this.dt2 = dt2;
-        s.Add(dt2);
-    }
-
-    public override void DeSerialize()
-    {
-        s.Update();
-    }
-
-    public override byte[] Serialize(int pointer)
-    {
-        this.pointer = pointer;
-        return s.GetBytes(pointer);
-    }
-}
-
-public class Serializer 
-{
-    public readonly List<SerializableObject> serializableObjects = new();
-
-    public int sBytes = 0;
-
-    public void Add(SerializableObject obj) 
-    {
-        Add(obj, obj.objBytes);
-    }
-
-    public void Add(SerializableObject obj, int bytes) {
-        serializableObjects.Add(obj);
-        sBytes += bytes;
-    }
-
-    public byte[] GetBytes(int pointer) 
-    {
-        byte[] byteArray = new byte[sBytes];
-        int byteOffset = 0;
-        int nextLength;
-        foreach (SerializableObject obj in serializableObjects)
+#region OldSerializedObject
+    public class testDataType : SerializableObject {
+    
+        public int value1;
+        public int value2;
+    
+        public testDataType(int first, int second)
         {
-            nextLength = obj.objBytes;
-            if (byteOffset + nextLength <= sBytes)
-            {
-                obj.Serialize(pointer);
-                byteOffset += nextLength;
-                pointer += nextLength;
-            }
-            else
-            {
-                Debug.LogError("Serialize failed. Returned data too big for expected buffer returning incomplete array");
-                return byteArray;
-            }
+            objBytes += 8;
+            value1 = first;
+            s.Add(new SInt(value1));
+            value2 = second;
+            s.Add(new SInt(value2));
         }
-        return byteArray;
-    }
-
-    public void Update() 
-    {
-        foreach (SerializableObject obj in serializableObjects)
+    
+        public override void DeSerialize()
         {
-            obj.DeSerialize();
+            s.Update();
+            value1 = ((SInt)s.serializableObjects[0]).value;
+            value2 = ((SInt)s.serializableObjects[1]).value;
+        }
+    
+        public override byte[] Serialize(int pointer)
+        {
+            this.pointer = pointer;
+            return s.GetBytes(pointer);
         }
     }
-}
-
-public abstract class SerializableObject 
-{
-    protected Serializer s = new();
-
-    protected int pointer;
-
-    public int objBytes;
-
-    public abstract byte[] Serialize(int pointer);
-    public abstract void DeSerialize();
-
-}
-
-public class SInt : SerializableObject
-{
-    public int value;
-
-    public SInt(int value) {
-        objBytes = 4;
-        this.value = value;
-        s.Add(this);
+    
+    public class testContainer : SerializableObject {
+    
+        public testDataType dt1;
+        public testDataType dt2;
+    
+        public testContainer(testDataType dt1, testDataType dt2) {
+            objBytes += dt1.objBytes;
+            this.dt1 = dt1;
+            s.Add(dt1);
+            objBytes += dt2.objBytes;
+            this.dt2 = dt2;
+            s.Add(dt2);
+        }
+    
+        public override void DeSerialize()
+        {
+            s.Update();
+        }
+    
+        public override byte[] Serialize(int pointer)
+        {
+            this.pointer = pointer;
+            return s.GetBytes(pointer);
+        }
     }
-
-    override public byte[] Serialize(int pointer) {
-        this.pointer = pointer;
-        Array.Copy(BitConverter.GetBytes(value),0,ByteBuffer.buffer,pointer, objBytes);
-        return new byte[0];
-    }
-
-    public override void DeSerialize()
+    
+    public class Serializer 
     {
-        value = BitConverter.ToInt32(ByteBuffer.buffer, pointer);
+        public readonly List<SerializableObject> serializableObjects = new();
+    
+        public int sBytes = 0;
+    
+        public void Add(SerializableObject obj) 
+        {
+            Add(obj, obj.objBytes);
+        }
+    
+        public void Add(SerializableObject obj, int bytes) {
+            serializableObjects.Add(obj);
+            sBytes += bytes;
+        }
+    
+        public byte[] GetBytes(int pointer) 
+        {
+            byte[] byteArray = new byte[sBytes];
+            int byteOffset = 0;
+            int nextLength;
+            foreach (SerializableObject obj in serializableObjects)
+            {
+                nextLength = obj.objBytes;
+                if (byteOffset + nextLength <= sBytes)
+                {
+                    obj.Serialize(pointer);
+                    byteOffset += nextLength;
+                    pointer += nextLength;
+                }
+                else
+                {
+                    Debug.LogError("Serialize failed. Returned data too big for expected buffer returning incomplete array");
+                    return byteArray;
+                }
+            }
+            return byteArray;
+        }
+    
+        public void Update() 
+        {
+            foreach (SerializableObject obj in serializableObjects)
+            {
+                obj.DeSerialize();
+            }
+        }
     }
-}
+    
+    public abstract class SerializableObject 
+    {
+        protected Serializer s = new();
+    
+        protected int pointer;
+    
+        public int objBytes;
+    
+        public abstract byte[] Serialize(int pointer);
+        public abstract void DeSerialize();
+    
+    }
+    
+    public class SInt : SerializableObject
+    {
+        public int value;
+    
+        public SInt(int value) {
+            objBytes = 4;
+            this.value = value;
+            s.Add(this);
+        }
+    
+        override public byte[] Serialize(int pointer) {
+            this.pointer = pointer;
+            Array.Copy(BitConverter.GetBytes(value),0,ByteBuffer.buffer,pointer, objBytes);
+            return new byte[0];
+        }
+    
+        public override void DeSerialize()
+        {
+            value = BitConverter.ToInt32(ByteBuffer.buffer, pointer);
+        }
+    }
+#endregion
 }

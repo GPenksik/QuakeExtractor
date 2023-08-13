@@ -1,5 +1,8 @@
+using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace UnityQuake.Utils
@@ -43,7 +46,8 @@ public static class ReadBinary {
             return null;
         }
     }
-    // public static MemoryStream GetByteArrayAsMS(string binaryFilename, string binaryPath = "")
+
+// public static MemoryStream GetByteArrayAsMS(string binaryFilename, string binaryPath = "")
     // {
     //     if (binaryPath == "") {
     //         binaryPath = BspPaths.Root;
@@ -126,4 +130,29 @@ public static class ReadBinary {
     //     }
     // }
 }
+
+
+public static class StringUtils{
+    public enum StringType 
+    {
+        aString,
+        aFloat,
+    }
+    
+    public static StringType ParseStringType(string stringToParse, out float floatValue) 
+    {
+        try 
+        {
+            char quotes = "\"".ToCharArray()[0];
+            floatValue = Single.Parse(stringToParse.Trim(quotes), NumberStyles.Float);
+            return StringType.aFloat;
+        }
+        catch (FormatException) 
+        {
+            floatValue = 0;
+            return StringType.aString;
+        }
+    }
+}
+
 }

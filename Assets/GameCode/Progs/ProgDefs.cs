@@ -11,110 +11,162 @@ namespace UnityQuake.Progs
 public static class ProgDefs
 {
     public const int MAX_PARMS = 8;
-    [System.Serializable]
-    public class dprograms_t
-    {
-        public int	version;
-        public int	crc;			// check of header file
-        
-        public int	ofs_statements;
-        public int	numstatements;	// statement 0 is an error
-        
-        public int	ofs_globaldefs;
-        public int	numglobaldefs;
-        
-        public int	ofs_fielddefs;
-        public int	numfielddefs;
-        
-        public int	ofs_functions;
-        public int	numfunctions;	// function 0 is an empty
-        
-        public int	ofs_strings;
-        public int	numstrings;		// first string is a null string
-        
-        public int	ofs_globals;
-        public int	numglobals;
-        
-        public int	entityfields;
-    } //dprograms_t;
-    
-    [System.Serializable]
-    public class dfunction_t
-    {
-        public int		first_statement;	// negative numbers are builtins
-        public int		parm_start;
-        public int		locals;				// total ints of parms + locals
-        
-        public int		profile;		// runtime
-        
-        public int		s_name;
-        public int		s_file;			// source file defined in
-        
-        public int		numparms;
-        public byte[]	parm_size;
 
-        public string   UQname;
-        public int      UQmemPtr; 
-        public static int bytes = 36;
-    } //dfunction_t;
-
-    public static void fill(this dfunction_t function) {
-
-        function.parm_size = new byte[MAX_PARMS];
-        function.first_statement = ProgsReader.reader.ReadInt32();
-        function.parm_start = ProgsReader.reader.ReadInt32();
-        function.locals = ProgsReader.reader.ReadInt32();
-        function.profile = ProgsReader.reader.ReadInt32();
-        function.s_name = ProgsReader.reader.ReadInt32();
-        function.s_file = ProgsReader.reader.ReadInt32();
-        function.numparms = ProgsReader.reader.ReadInt32();
-        for (int i = 0; i < MAX_PARMS; i++)
+    #region Struct Definitions
+        
+        [System.Serializable]
+        public class dprograms_t
         {
-            function.parm_size[i] = ProgsReader.reader.ReadByte();
-        }
-
-        function.UQname = GetStringFromProg(function.s_name);
-    }
-
-
-    [System.Serializable]
-    public class ddef_t
-    {
-        public ushort type;		        // if DEF_SAVEGLOBGAL bit is set the variable needs to be saved in savegames
-        public ushort ofs;
-        public int s_name;
-        public string UQname;
-        public int UQmemPtr;
-        public ddef_types UQType;
-        public static int bytes = 8;
-
-        public int this[int i] {
-            get => bytes * i;
-        }
-
-    } //ddef_t;
-
-    public static void Update(this ddef_t ddef, int indexOffset) {
-        ProgsReader.MarkPosition();
-        ProgsReader.Set(ProgsReader.progs.ofs_globaldefs + ddef[indexOffset]);
-        ddef.fill();
-        ProgsReader.ReturnToMark();
-    }
-
-    public static void fill(this ddef_t def) {
-        def.UQmemPtr = ProgsReader.GetPosition();
+            public int	version;
+            public int	crc;			// check of header file
+            
+            public int	ofs_statements;
+            public int	numstatements;	// statement 0 is an error
+            
+            public int	ofs_globaldefs;
+            public int	numglobaldefs;
+            
+            public int	ofs_fielddefs;
+            public int	numfielddefs;
+            
+            public int	ofs_functions;
+            public int	numfunctions;	// function 0 is an empty
+            
+            public int	ofs_strings;
+            public int	numstrings;		// first string is a null string
+            
+            public int	ofs_globals;
+            public int	numglobals;
+            
+            public int	entityfields;
+        } //dprograms_t;
         
-        def.type = ProgsReader.reader.ReadUInt16();
-        def.ofs = ProgsReader.reader.ReadUInt16();
-        def.s_name = ProgsReader.reader.ReadInt32();
+        [System.Serializable]
+        public class dfunction_t
+        {
+            public string   UQname;
+            public int		first_statement;	// negative numbers are builtins
+            public int		parm_start;
+            public int		locals;				// total ints of parms + locals
+            
+            public int		profile;		// runtime
+            
+            public int		s_name;
+            public int		s_file;			// source file defined in
+            
+            public int		numparms;
+            public byte[]	parm_size;
+    
+            public int      UQmemPtr; 
+            public static int bytes = 36;
+    
+            public int this[int i] {
+                get => bytes * i;
+            }
+        } //dfunction_t;
+    
+        [System.Serializable]
+        public class ddef_t
+        {
+            public ushort type;		        // if DEF_SAVEGLOBGAL bit is set the variable needs to be saved in savegames
+            public ushort ofs;
+            public int s_name;
+            public string UQname;
+            public int UQmemPtr;
+            public ddef_types UQType;
+            public static int bytes = 8;
+    
+            public int this[int i] {
+                get => bytes * i;
+            }
+    
+        } //ddef_t;
+    #endregion
 
-        def.UQname = GetStringFromProg(def.s_name);
-        def.UQType = (ddef_types)(def.type^(2<<15)/2);     
+    #region FILL FUNCS
+        public static void fill(this dfunction_t function) {
+    
+            function.parm_size = new byte[MAX_PARMS];
+            function.first_statement = ProgsReader.reader.ReadInt32();
+            function.parm_start = ProgsReader.reader.ReadInt32();
+            function.locals = ProgsReader.reader.ReadInt32();
+            function.profile = ProgsReader.reader.ReadInt32();
+            function.s_name = ProgsReader.reader.ReadInt32();
+            function.s_file = ProgsReader.reader.ReadInt32();
+            function.numparms = ProgsReader.reader.ReadInt32();
+            for (int i = 0; i < MAX_PARMS; i++)
+            {
+                function.parm_size[i] = ProgsReader.reader.ReadByte();
+            }
+    
+            function.UQname = GetStringFromProg(function.s_name);
+        }
+    
+        public static void fill(this ddef_t def) {
+            def.UQmemPtr = ProgsReader.GetPosition();
+            
+            def.type = ProgsReader.reader.ReadUInt16();
+            def.ofs = ProgsReader.reader.ReadUInt16();
+            def.s_name = ProgsReader.reader.ReadInt32();
+    
+            def.UQname = GetStringFromProg(def.s_name);
+            def.UQType = (ddef_types)(def.type^(2<<15)/2);     
+        }
+    #endregion
+
+    #region UPDATE FUNCS
+        public static void Update(this ddef_t ddef, int indexOffset) {
+            ProgsReader.MarkPosition();
+            ProgsReader.Set(ProgsReader.progs.ofs_globaldefs + ddef[indexOffset]);
+            ddef.fill();
+            ProgsReader.ReturnToMark();
+        }
+    
+        public static void Update(this dfunction_t function, int indexOffset) {
+            ProgsReader.MarkPosition();
+            ProgsReader.Set(ProgsReader.progs.ofs_functions + function[indexOffset]);
+            function.fill();
+            ProgsReader.ReturnToMark();
+        }
+    #endregion
+
+    public static int FindFunctionByName(this dfunction_t function, string name) {
+        ProgsReader.MarkPosition();
+        ProgsReader.Set(ProgsReader.progs.ofs_functions);
+        int indexCounter = 0;
+        while (ProgsReader.GetPosition() < ProgsReader.progs.ofs_functions + ProgsReader.progs.numfunctions*dfunction_t.bytes) {
+            function.fill();
+            if (function.UQname == name) {
+                ProgsReader.ReturnToMark();
+                return indexCounter;
+            }
+            indexCounter++;;
+        }
+        ProgsReader.ReturnToMark();
+        return -1;
     }
+
+    public static int FindDdefByName(this ddef_t ddef, string name) {
+        ProgsReader.MarkPosition();
+        ProgsReader.Set(ProgsReader.progs.ofs_globaldefs);
+        int indexCounter = 0;
+        while (ProgsReader.GetPosition() < ProgsReader.progs.ofs_globaldefs + ProgsReader.progs.numglobaldefs*dfunction_t.bytes) {
+            ddef.fill();
+            if (ddef.UQname == name) {
+                return indexCounter;
+            }
+            indexCounter++;;
+        }
+        ProgsReader.ReturnToMark();
+        return -1;
+    }
+
+
 
     private static string GetStringFromProg(int offset, int maxLength = 20)
     {
         List<byte> nameBytes = new();
+        byte latestChar = 0;
         ProgsReader.MarkPosition();
         ProgsReader.Set(offset + ProgsReader.progs.ofs_strings);
         for (int i = 0; i < maxLength; i++)
@@ -123,14 +175,18 @@ public static class ProgDefs
                 Debug.LogError("RAN OUT OF BUFFER ON GET STRING");
                 break;
             }
-            nameBytes.Add(ProgsReader.reader.ReadByte());
-            if (nameBytes[i] == 0)
+
+            latestChar = ProgsReader.reader.ReadByte();
+            
+            if (latestChar == 0)
             {
                 break;
+            } else {
+                nameBytes.Add(latestChar);
             }
         }
         ProgsReader.ReturnToMark();
-        return System.Text.Encoding.UTF8.GetString(nameBytes.ToArray());
+        return Encoding.UTF8.GetString(nameBytes.ToArray());
     }
 
     public enum ddef_types
