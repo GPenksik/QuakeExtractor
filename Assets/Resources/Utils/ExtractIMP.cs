@@ -1,8 +1,10 @@
-// using System;
-// using System.IO;
-// using System.Text;
-// using UnityEditor;
-// using UnityEngine;
+using System;
+using System.IO;
+using System.Text;
+using UnityEditor;
+using UnityEngine;
+using System.Collections.Generic;
+using UnityQuake.Progs;
 
 
 // namespace UnityQuake.Utils 
@@ -100,12 +102,12 @@
 //         RenderTexture.active = rtt;
 //         GL.PushMatrix();
 //         GL.LoadPixelMatrix();
-        
+
 //         // Graphics.SetRenderTarget(rtt);
-        
+
 //         //Setup 2D matrix in range 0..1, so nobody needs to care about sized
 //         // GL.LoadPixelMatrix(0,1,1,0);
-        
+
 //         //Then clear & draw the texture to fill the entire RTT.
 //         // int color = UnityEngine.Random.Range(0, 1);
 //         // GL.Clear(true,true,new Color(color,color,color,color));
@@ -136,3 +138,143 @@
 //     }
 // }
 // }
+
+// #region OldSerializedObject
+
+// public class testDataType : SerializableObject {
+    
+//         public int value1;
+//         public int value2;
+    
+//         public testDataType(int first, int second)
+//         {
+//             objBytes += 8;
+//             value1 = first;
+//             s.Add(new SInt(value1));
+//             value2 = second;
+//             s.Add(new SInt(value2));
+//         }
+    
+//         public override void DeSerialize()
+//         {
+//             s.Update();
+//             value1 = ((SInt)s.serializableObjects[0]).value;
+//             value2 = ((SInt)s.serializableObjects[1]).value;
+//         }
+    
+//         public override byte[] Serialize(int pointer)
+//         {
+//             this.pointer = pointer;
+//             return s.GetBytes(pointer);
+//         }
+//     }
+    
+//     public class testContainer : SerializableObject {
+    
+//         public testDataType dt1;
+//         public testDataType dt2;
+    
+//         public testContainer(testDataType dt1, testDataType dt2) {
+//             objBytes += dt1.objBytes;
+//             this.dt1 = dt1;
+//             s.Add(dt1);
+//             objBytes += dt2.objBytes;
+//             this.dt2 = dt2;
+//             s.Add(dt2);
+//         }
+    
+//         public override void DeSerialize()
+//         {
+//             s.Update();
+//         }
+    
+//         public override byte[] Serialize(int pointer)
+//         {
+//             this.pointer = pointer;
+//             return s.GetBytes(pointer);
+//         }
+//     }
+    
+//     public class Serializer 
+//     {
+//         public readonly List<SerializableObject> serializableObjects = new();
+    
+//         public int sBytes = 0;
+    
+//         public void Add(SerializableObject obj) 
+//         {
+//             Add(obj, obj.objBytes);
+//         }
+    
+//         public void Add(SerializableObject obj, int bytes) {
+//             serializableObjects.Add(obj);
+//             sBytes += bytes;
+//         }
+    
+//         public byte[] GetBytes(int pointer) 
+//         {
+//             byte[] byteArray = new byte[sBytes];
+//             int byteOffset = 0;
+//             int nextLength;
+//             foreach (SerializableObject obj in serializableObjects)
+//             {
+//                 nextLength = obj.objBytes;
+//                 if (byteOffset + nextLength <= sBytes)
+//                 {
+//                     obj.Serialize(pointer);
+//                     byteOffset += nextLength;
+//                     pointer += nextLength;
+//                 }
+//                 else
+//                 {
+//                     Debug.LogError("Serialize failed. Returned data too big for expected buffer returning incomplete array");
+//                     return byteArray;
+//                 }
+//             }
+//             return byteArray;
+//         }
+    
+//         public void Update() 
+//         {
+//             foreach (SerializableObject obj in serializableObjects)
+//             {
+//                 obj.DeSerialize();
+//             }
+//         }
+//     }
+    
+//     public abstract class SerializableObject 
+//     {
+//         protected Serializer s = new();
+    
+//         protected int pointer;
+    
+//         public int objBytes;
+    
+//         public abstract byte[] Serialize(int pointer);
+//         public abstract void DeSerialize();
+    
+//     }
+    
+//     public class SInt : SerializableObject
+//     {
+//         public int value;
+    
+//         public SInt(int value) {
+//             objBytes = 4;
+//             this.value = value;
+//             s.Add(this);
+//         }
+    
+//         override public byte[] Serialize(int pointer) {
+//             this.pointer = pointer;
+//             Array.Copy(BitConverter.GetBytes(value),0,ByteBuffer.buffer,pointer, objBytes);
+//             return new byte[0];
+//         }
+    
+//         public override void DeSerialize()
+//         {
+//             value = BitConverter.ToInt32(ByteBuffer.buffer, pointer);
+//         }
+//     }
+// #endregion
